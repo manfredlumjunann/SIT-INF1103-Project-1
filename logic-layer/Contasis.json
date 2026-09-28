@@ -1,0 +1,161 @@
+{
+  "clauses": [
+    {
+      "clause_text": "\"Confidential Information\" means any information disclosed by one Party (the \"Disclosing Party\") to the other Party (the \"Receiving Party\"), whether orally, visually, electronically, digitally, in writing, or in any other form, which is confidential or proprietary in nature. This includes business plans, strategies, customer and supplier information, pricing, financial information, marketing plans, technical information, systems, software, databases, trade secrets, know-how, intellectual property, contracts, reports, records, access credentials, and other information that a reasonable person would understand to be confidential.",
+      "clause_type": "Overly Broad Definition of Confidential Information",
+      "issue_description": "Clause 2 defines Confidential Information to include 'any information... which is confidential or proprietary in nature' and adds a subjective 'reasonable person would understand to be confidential' standard. This captures virtually all shared information, including information that may not truly be secret, creating uncertainty and over-restriction.",
+      "legal_references": [
+        {
+          "summary": "The overly broad definition of confidential information without correlation to the specific transaction ended up defeating the very purpose of the provision ...",
+          "title": "[PDF] Data & Software: - Intellectual Property, Risk Management, and Asset ...",
+          "url": "https://www.acc.com/sites/default/files/resources/upload/ACC%20Guide%20Data%20and%20Software.pdf"
+        },
+        {
+          "summary": "an overly broad definition of confidential information can be found unenforceable pursuant to. Wisconsin Statute section 103.465. Details ...",
+          "title": "[PDF] Annual 2024 Trade Secrets End of Year Report - ArentFox Schiff",
+          "url": "https://www.afslaw.com/sites/default/files/2025-02/AFS%20Trade%20Secrets%20End%20of%20Year%20Report%202024.pdf"
+        },
+        {
+          "summary": "Here are some of the hidden risks: ❌ An overly broad definition of confidential information can restrict your ability to use your own ...",
+          "title": "5 NDA Clauses to Reconsider for Effective Confidentiality Agreements",
+          "url": "https://www.linkedin.com/posts/raja-rajeswari-6787a970_contractmanagement-nda-commercialcontracts-activity-7484936140681023488-Z5z6"
+        }
+      ],
+      "line_number": "Page 2, Clause 2",
+      "risk_level": "HIGH",
+      "workaround": "Narrow the definition to require: (1) information marked 'Confidential' or identified as such in writing at disclosure (or within a short period for oral disclosures); (2) exclude information the Receiving Party can show is not competitively sensitive; (3) remove the 'reasonable person' subjective test."
+    },
+    {
+      "clause_text": "For twelve (12) months following termination of discussions, neither Party shall knowingly solicit for employment any employee of the other Party who was directly involved in the Purpose, except through general recruitment advertisements not specifically targeted at such employees, and only to the extent permitted by applicable law.",
+      "clause_type": "Non-Solicitation Clause in NDA",
+      "issue_description": "Clause 13 imposes a 12-month non-solicitation restriction on employees 'directly involved in the Purpose.' Non-solicits are restrictive covenants that belong in employment or commercial agreements, not NDAs. They may be unenforceable in some jurisdictions (e.g., California, Singapore restraint of trade doctrine) and expand the NDA's scope beyond confidentiality.",
+      "legal_references": [
+        {
+          "summary": "For example, you may not want to have a 'Non-Solicitation' clause in NDA agreements without requiring an additional approver from a relevant ...",
+          "title": "Create Ironclad AI Playbooks in Workflow Designer",
+          "url": "https://support.ironcladapp.com/hc/en-us/articles/24948981301143-Create-Ironclad-AI-Playbooks-in-Workflow-Designer"
+        }
+      ],
+      "line_number": "Page 3, Clause 13",
+      "risk_level": "HIGH",
+      "workaround": "Remove the non-solicitation clause entirely from this NDA. If talent protection is needed, negotiate a separate agreement with appropriate consideration, geographic/temporal limits, and compliance with local restraint-of-trade laws."
+    },
+    {
+      "clause_text": "This Agreement begins on the Effective Date and remains in effect for two (2) years unless terminated earlier by written agreement. Confidentiality obligations concerning information disclosed during the term continue for three (3) years following the date of disclosure. Trade secrets remain protected for so long as they qualify as trade secrets under applicable law.",
+      "clause_type": "Variable and Extended Confidentiality Survival",
+      "issue_description": "Clause 8 provides a 2-year agreement term but confidentiality obligations survive for 3 years from *date of each disclosure*. This creates a rolling survival period: information disclosed on the last day of the 2-year term remains confidential for 5 years total. Trade secrets survive indefinitely. This uncertainty complicates records retention and compliance.",
+      "legal_references": [
+        {
+          "summary": "Regardless of whether the FTC ultimately succeeds in regulating these agreements, courts have the power and precedent to do so on their own.",
+          "title": "Beyond Trade Secrecy: Confidentiality Agreements that Act Like ...",
+          "url": "https://yalelawjournal.org/article/beyond-trade-secrecy-confidentiality-agreements-that-act-like-noncompetes"
+        },
+        {
+          "summary": "Regardless of whether the FTC ultimately succeeds in regulating these agreements, courts have the power and precedent to do so on their own.",
+          "title": "[PDF] Beyond Trade Secrecy: Confidentiality Agreements that Act Like ...",
+          "url": "https://scholarlycommons.law.wlu.edu/cgi/viewcontent.cgi?article=1783&context=wlufac"
+        },
+        {
+          "summary": "Information that constitutes a trade secret is protected under common law until such time as it's no longer a trade secret.",
+          "title": "The Duration of Confidentiality Agreements",
+          "url": "https://www.adamsdrafting.com/duration-confidentiality-agreements/"
+        }
+      ],
+      "line_number": "Page 2, Clause 8",
+      "risk_level": "MEDIUM",
+      "workaround": "Change survival to a fixed period from the Agreement's termination or expiration (e.g., '3 years from the Effective Date' or '3 years from termination'). For trade secrets, limit to 'so long as they remain trade secrets under applicable law AND the Receiving Party has not independently developed them.'"
+    },
+    {
+      "clause_text": "Neither Party shall make a public announcement concerning the existence, nature, or terms of the Parties' discussions or proposed business relationship without prior written consent, except where disclosure is required by law or regulation.",
+      "clause_type": "Restrictive Public Announcement Clause",
+      "issue_description": "Clause 14 prohibits *any* public announcement about the existence, nature, or terms of discussions without prior written consent. This is overly broad—it could prevent a party from making required regulatory filings, press releases about unrelated matters that reference the relationship, or even internal communications. The 'required by law' exception is narrow.",
+      "legal_references": [
+        {
+          "summary": "Based on these findings, the court denied summary judgment as to employer's breach of contract claim but granted summary judgment as to all ...",
+          "title": "Recent Developments in Employee Mobility, Restrictive Covenants and ...",
+          "url": "https://www.americanbar.org/groups/business_law/resources/business-law-today/2022-march/recent-developments-employee-mobility-restrictive-covenants-trade-secrets-2022/"
+        },
+        {
+          "summary": "AB-1076, enacted just a month later, codifies California Supreme Court precedent which made including a non-compete clause in an employment ...",
+          "title": "White & Case Global Non-Compete Resource Center (NCRC)",
+          "url": "https://www.whitecase.com/insight-tool/white-case-global-non-compete-resource-center-ncrc"
+        },
+        {
+          "summary": "At the Law Office of Kevin O'Mahony, we represent healthcare providers, businesses and professionals regarding restrictive covenants in their contracts.",
+          "title": "Restrictive Covenants & Non-Compete Agreements",
+          "url": "https://www.komahonylaw.com/restrictive-covenants-non-compete-agreements/"
+        }
+      ],
+      "line_number": "Page 3, Clause 14",
+      "risk_level": "MEDIUM",
+      "workaround": "Limit to: 'Neither Party shall issue a press release or public statement specifically announcing the discussions or proposed relationship without prior written consent.' Add carve-outs for: (a) legally required disclosures (SEC, SGX, etc.); (b) disclosures to investors/lenders under NDA; (c) generic references in marketing materials."
+    },
+    {
+      "clause_text": "This Agreement is governed by the laws of Singapore. The Parties submit to the exclusive jurisdiction of the courts of Singapore in relation to disputes arising from or connected with this Agreement, subject to applicable mandatory legal requirements.",
+      "clause_type": "Exclusive Jurisdiction in Singapore",
+      "issue_description": "Clause 19 submits all disputes to the exclusive jurisdiction of Singapore courts. For a foreign Counterparty, this creates significant litigation cost and enforcement asymmetry. Singapore courts may not be a neutral forum if Lumina is Singapore-incorporated.",
+      "legal_references": [
+        {
+          "summary": "Non-exclusive jurisdiction in Singapore. 11. Page 14. RISK FACTORS ... (c) the subject of any order, judgment or ruling of any court of competent ...",
+          "title": "[PDF] WING TAI HOLDINGS LIMITED - iFAST Global Markets",
+          "url": "https://www.ifastgm.com.sg/igm/bond/relatedBondDocument/SG6W65985478/DSSD000000002094475240.pdf"
+        }
+      ],
+      "line_number": "Page 3, Clause 19",
+      "risk_level": "MEDIUM",
+      "workaround": "Negotiate: (1) non-exclusive jurisdiction (allows suit in either party's home jurisdiction); (2) arbitration in a neutral seat (e.g., SIAC, ICC) with a neutral governing law; or (3) at minimum, add 'subject to the non-exclusive jurisdiction of the courts of [Counterparty's jurisdiction] for enforcement purposes.'"
+    },
+    {
+      "clause_text": "disclose it only to personnel or professional advisers with a legitimate need to know; and (f) ensure such persons are bound by confidentiality obligations no less protective than this Agreement.",
+      "clause_type": "Third-Party Confidentiality Obligation Standard",
+      "issue_description": "Clause 3(f) requires the Receiving Party to ensure personnel/advisers are bound by obligations 'no less protective than this Agreement.' This may require flow-down of terms that are stricter than the third party's standard confidentiality agreements (e.g., with auditors, regulators, or cloud providers), creating practical compliance difficulties.",
+      "legal_references": [
+        {
+          "summary": "Learn about the scope, nuances, and limitations of confidentiality and nondisclosure agreements, and download a confidentiality agreement template.",
+          "title": "Confidentiality and Nondisclosure Agreements Explained",
+          "url": "https://pro.bloomberglaw.com/insights/contracts/confidentiality-and-non-disclosure-agreements-explained/"
+        },
+        {
+          "summary": "Receiving Party may provide Confidential Information only to Receiving Party's employees and third party professional legal, financial, and technical advisors ( ...",
+          "title": "Examples of confidential information clauses in contracts - Afterpattern",
+          "url": "https://afterpattern.com/clauses/confidential-information"
+        },
+        {
+          "summary": "Such broad confidentiality obligations constitute, along with restrictions on competition, “restrictive covenants,” and in many jurisdictions ...",
+          "title": "The Duration of Confidentiality Agreements",
+          "url": "https://www.adamsdrafting.com/duration-confidentiality-agreements/"
+        }
+      ],
+      "line_number": "Page 2, Clause 3(f)",
+      "risk_level": "LOW",
+      "workaround": "Change to: 'ensure such persons are bound by confidentiality obligations substantially similar to, or no less protective than, those in this Agreement, to the extent commercially reasonable.' Or allow use of the Receiving Party's standard NDA with third parties if it provides 'reasonable protection.'"
+    },
+    {
+      "clause_text": "Neither Party may assign or transfer its rights or obligations without prior written consent, except as part of a merger, restructuring, or sale of substantially all of the relevant business or assets.",
+      "clause_type": "Vague Assignment Carve-Out",
+      "issue_description": "Clause 15 permits assignment without consent 'as part of a merger, restructuring, or sale of substantially all of the relevant business or assets.' The phrase 'relevant business or assets' is ambiguous—does it mean the business unit involved in the Purpose, or the entire company? This could allow unwanted assignment to a competitor via a small asset sale.",
+      "legal_references": [
+        {
+          "summary": "Your contract could be interpreted and enforced differently than you think if a court rules its language is ambiguous.",
+          "title": "How Courts Resolve Ambiguous Contract Language: business law ...",
+          "url": "https://www.plunkettcooney.com/dontbetthebusinessblog/ambiguous-contracts"
+        },
+        {
+          "summary": "Many real-world contracts contain vague clauses despite the enforcement risk they en- tail. To study the causes and consequences of this phenomenon, ...",
+          "title": "[PDF] Optimally Vague Contracts and the Law - Repositori UPF",
+          "url": "https://repositori.upf.edu/bitstreams/e9532d29-e439-4c86-98ae-45677d02cbeb/download"
+        },
+        {
+          "summary": "# Mastering the Litigation Carve-Out\n### **Conclusion**\nThis case is now before the U.S.",
+          "title": "Mastering the Litigation Carve-Out | USC Gould School of Law",
+          "url": "https://gould.usc.edu/news/mastering-the-litigation-carve-out/"
+        }
+      ],
+      "line_number": "Page 3, Clause 15",
+      "risk_level": "LOW",
+      "workaround": "Clarify: 'sale of all or substantially all of the assigning Party's assets or business to which this Agreement relates' or require that the assignee not be a direct competitor of the other Party. Add: 'Any permitted assignee must agree in writing to be bound by this Agreement.'"
+    }
+  ],
+  "timestamp": "2026-09-15T09:42:18.612619",
+  "total_flagged": 7
+}
