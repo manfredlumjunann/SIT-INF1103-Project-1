@@ -41,7 +41,10 @@ dropZone.addEventListener('drop', (e) => {
     }
 });
 
-dropZone.addEventListener('click', () => {
+// Single handler for the whole drop zone, including the Browse button inside it.
+// Clicks re-dispatched from the hidden input itself are ignored to avoid reopening the picker.
+dropZone.addEventListener('click', (e) => {
+    if (e.target === fileInput) return;
     fileInput.click();
 });
 
@@ -348,41 +351,73 @@ function renderClause(clause, index) {
     }
     const risk = normaliseRisk(clause);
     const riskLabel = risk === 'unrated' ? 'Unrated' : `${risk.toUpperCase()} Risk`;
-    const card = document.createElement('div');
-    card.className = `clause-card ${risk}`;
 
-    let referencesHtml = '';
-    if (Array.isArray(clause.legal_references) && clause.legal_references.length > 0) {
-        const references = clause.legal_references.filter(ref => ref && typeof ref === 'object');
-        referencesHtml = `
-            <div class="references">
-                <h4>📚 Legal References & Precedents</h4>
-                ${references.map(ref => {
-                    const summary = String(ref.summary || '');
-                    return `
-                    <div class="reference-item">
-                        <a href="${ref.url || '#'}" target="_blank" rel="noopener">${ref.title || ref.url || 'Untitled source'}</a>
-                        ${summary ? `<div class="reference-summary">${summary.substring(0, 200)}${summary.length > 200 ? '...' : ''}</div>` : ''}
-                    </div>
-                `;
-                }).join('')}
-            </div>
-        `;
+    // Built with textContent only: AI and web-search text is untrusted and must never be parsed as HTML.
+    const card = createElement('div', `clause-card ${risk}`);
+
+    const header = createElement('div', 'clause-header');
+    header.appendChild(createElement('span', 'clause-type', `${index + 1}. ${clause.clause_type || 'Unnamed clause'}`));
+    header.appendChild(createElement('span', `risk-badge ${risk}`, riskLabel));
+    card.appendChild(header);
+
+    card.appendChild(createElement('div', 'clause-text', `"${clause.clause_text || 'Clause text not provided'}"`));
+
+    const workaround = createElement('div', 'workaround');
+    workaround.appendChild(createElement('h4', '', '💡 Recommended Workaround'));
+    workaround.appendChild(createElement('p', '',
+        clause.workaround || 'No workaround was provided. Consider consulting legal counsel.'));
+    card.appendChild(workaround);
+
+    const references = Array.isArray(clause.legal_references)
+        ? clause.legal_references.filter(ref => ref && typeof ref === 'object')
+        : [];
+    if (references.length > 0) {
+        const section = createElement('div', 'references');
+        section.appendChild(createElement('h4', '', '📚 Legal References & Precedents'));
+        references.forEach(ref => section.appendChild(renderReference(ref)));
+        card.appendChild(section);
+    }
+    return card;
+}
+
+function renderReference(ref) {
+    const item = createElement('div', 'reference-item');
+    const title = String(ref.title || ref.url || 'Untitled source');
+    const href = safeUrl(ref.url);
+
+    if (href) {
+        const link = createElement('a', '', title);
+        link.href = href;
+        link.target = '_blank';
+        link.rel = 'noopener noreferrer';
+        item.appendChild(link);
+    } else {
+        item.appendChild(createElement('span', 'reference-title', title));
     }
 
-    card.innerHTML = `
-        <div class="clause-header">
-            <span class="clause-type">${index + 1}. ${clause.clause_type || 'Unnamed clause'}</span>
-            <span class="risk-badge ${risk}">${riskLabel}</span>
-        </div>
-        <div class="clause-text">"${clause.clause_text || 'Clause text not provided'}"</div>
-        <div class="workaround">
-            <h4>💡 Recommended Workaround</h4>
-            <p>${clause.workaround || 'No workaround was provided. Consider consulting legal counsel.'}</p>
-        </div>
-        ${referencesHtml}
-    `;
-    return card;
+    const summary = String(ref.summary || '');
+    if (summary) {
+        const shortened = summary.length > 200 ? `${summary.substring(0, 200)}...` : summary;
+        item.appendChild(createElement('div', 'reference-summary', shortened));
+    }
+    return item;
+}
+
+// Only http(s) links are allowed; anything else (e.g. javascript: URLs) is shown as plain text.
+function safeUrl(url) {
+    try {
+        const parsed = new URL(String(url || ''));
+        return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
+    } catch (error) {
+        return null;
+    }
+}
+
+function createElement(tag, className, text) {
+    const element = document.createElement(tag);
+    if (className) element.className = className;
+    if (text !== undefined) element.textContent = String(text);
+    return element;
 }
 
 function showNotice(message, type, hint) {
