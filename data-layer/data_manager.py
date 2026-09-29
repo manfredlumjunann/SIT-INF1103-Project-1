@@ -267,14 +267,20 @@ def find_analysis_by_hash(owner_id: str, contract_hash: str) -> Optional[Record]
 
 
 def list_analyses(owner_id: Optional[str] = None,
-                  status: Optional[str] = None) -> List[Record]:
+                  status: Optional[str] = None,
+                  risk_level: Optional[str] = None) -> List[Record]:
+    """Newest first. risk_level keeps only analyses with at least one clause at that level."""
     if status is not None:
         _require_choice(status, ANALYSIS_STATUSES, 'status')
+    level = None
+    if risk_level is not None:
+        level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
     with _lock:
         _ensure_loaded()
         matches = [a for a in _store['analyses']
                    if (owner_id is None or a['owner_id'] == owner_id)
-                   and (status is None or a['status'] == status)]
+                   and (status is None or a['status'] == status)
+                   and (level is None or a['counts'].get(level.lower(), 0) > 0)]
         return _newest_first(matches)
 
 
@@ -351,6 +357,26 @@ def get_reference(ref_id: str) -> Optional[Record]:
     with _lock:
         _ensure_loaded()
         return copy.deepcopy(_find('references', ref_id))
+
+
+def resolve_references(clause: Record) -> List[Record]:
+    """Expand a stored clause's {ref_id, snippet} links into full references for display.
+    Links to references that no longer exist are skipped."""
+    resolved = []
+    with _lock:
+        _ensure_loaded()
+        for link in clause.get('references') or []:
+            ref = _find('references', link.get('ref_id', ''))
+            if ref is None:
+                continue
+            resolved.append({
+                'title': ref['title'],
+                'url': ref['url'],
+                'summary': link.get('snippet', ''),
+                'domain': ref['domain'],
+                'verification': ref['verification'],
+            })
+    return resolved
 
 
 def set_reference_verification(ref_id: str, verification: str) -> Record:
