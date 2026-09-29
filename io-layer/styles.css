@@ -329,6 +329,11 @@ textarea:focus {
     text-decoration: underline;
 }
 
+.reference-title {
+    font-weight: 600;
+    color: #4a5568;
+}
+
 .reference-summary {
     font-size: 0.9rem;
     color: #718096;
