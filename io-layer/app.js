@@ -1,6 +1,8 @@
 // Contract Clause Analyzer - Frontend Application
 let selectedFile = null;
 let analysisResult = null;
+// The most recent request, so "Try Again" can repeat whatever failed
+let lastRequest = null;
 
 // Must match what the backend can parse and nginx/Flask upload limits
 const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
@@ -21,6 +23,10 @@ const progressFill = document.getElementById('progress-fill');
 const loadingStatus = document.getElementById('loading-status');
 const fileError = document.getElementById('file-error');
 const resultNotice = document.getElementById('result-notice');
+const resultMeta = document.getElementById('result-meta');
+const historyFilter = document.getElementById('history-filter');
+const historyList = document.getElementById('history-list');
+const historyMessage = document.getElementById('history-message');
 
 // Drag & Drop Handlers
 dropZone.addEventListener('dragover', (e) => {
@@ -107,13 +113,21 @@ function removeFile() {
     clearFileError();
 }
 
-// Analysis Handler
+// Analysis Handlers
 analyzeBtn.addEventListener('click', runAnalysis);
+historyFilter.addEventListener('change', loadHistory);
 
-async function runAnalysis() {
+// Upload the selected file and analyze it.
+function runAnalysis() {
     if (!selectedFile) return;
-
+    const file = selectedFile;
     const contextText = document.getElementById('context-text').value.trim();
+    performAnalysis(() => requestAnalysis(file, contextText));
+}
+
+// Shared loading/progress/error handling for any request that runs the AI pipeline.
+async function performAnalysis(makeRequest) {
+    lastRequest = makeRequest;
 
     // Show loading state
     loadingSection.style.display = 'block';
@@ -137,7 +151,7 @@ async function runAnalysis() {
 
     let result;
     try {
-        result = await requestAnalysis(selectedFile, contextText);
+        result = await makeRequest();
         progressFill.style.width = '100%';
     } catch (error) {
         console.error('Analysis request failed:', error);
@@ -147,8 +161,27 @@ async function runAnalysis() {
         clearInterval(progressInterval);
         loadingSection.style.display = 'none';
         analyzeBtn.disabled = !selectedFile;
+        loadHistory();
     }
 
+    showResult(result);
+}
+
+// Opens a saved analysis from history. No AI call, so no progress animation.
+async function openSavedAnalysis(analysisId) {
+    lastRequest = () => fetchAnalysisJson(`/api/analyses/${encodeURIComponent(analysisId)}`);
+    errorSection.style.display = 'none';
+    try {
+        showResult(await lastRequest());
+        outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } catch (error) {
+        console.error('Opening saved analysis failed:', error);
+        outputSection.style.display = 'none';
+        showError(toDisplayError(error));
+    }
+}
+
+function showResult(result) {
     analysisResult = result;
     try {
         displayResults(result);
@@ -164,23 +197,32 @@ async function runAnalysis() {
 }
 
 // Sends the contract to the backend and returns the parsed result.
-// Throws an error carrying a user-facing title/message/hint on any failure.
-async function requestAnalysis(file, contextText) {
+function requestAnalysis(file, contextText) {
     const formData = new FormData();
     formData.append('contract', file);
     formData.append('context', contextText);
+    return fetchAnalysisJson('/api/analyze', { method: 'POST', body: formData });
+}
 
+// fetchJson plus a check that the response is an analysis with a clause list.
+async function fetchAnalysisJson(url, options) {
+    const data = await fetchJson(url, options);
+    if (!data || !Array.isArray(data.clauses)) {
+        throw invalidResponseError();
+    }
+    return data;
+}
+
+// Fetches JSON from the backend.
+// Throws an error carrying a user-facing title/message/hint on any failure.
+async function fetchJson(url, options = {}) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
 
     try {
         let response;
         try {
-            response = await fetch('/api/analyze', {
-                method: 'POST',
-                body: formData,
-                signal: controller.signal
-            });
+            response = await fetch(url, { ...options, signal: controller.signal });
         } catch (error) {
             if (error.name === 'AbortError') throw timeoutError();
             throw appError('Connection Problem',
@@ -194,17 +236,12 @@ async function requestAnalysis(file, contextText) {
             throw appError(details.title, details.message, details.hint);
         }
 
-        let data;
         try {
-            data = await response.json();
+            return await response.json();
         } catch (error) {
             if (error.name === 'AbortError') throw timeoutError();
             throw invalidResponseError();
         }
-        if (!data || !Array.isArray(data.clauses)) {
-            throw invalidResponseError();
-        }
-        return data;
     } finally {
         clearTimeout(timeoutId);
     }
@@ -227,6 +264,12 @@ function describeHttpError(status, serverMessage) {
                 title: 'Could Not Analyze This File',
                 message: serverMessage || 'The file could not be processed.',
                 hint: 'Check that the file is a readable PDF, DOCX or TXT. Scanned PDFs (images of pages) contain no text to analyze.'
+            };
+        case 404:
+            return {
+                title: 'Analysis Not Found',
+                message: serverMessage || 'This saved analysis no longer exists.',
+                hint: 'Refresh the page to reload your list of saved analyses.'
             };
         case 413:
             return {
@@ -295,6 +338,7 @@ function displayResults(result) {
     const clausesContainer = document.getElementById('clauses-container');
     clausesContainer.innerHTML = '';
     hideNotice();
+    renderResultMeta(result);
 
     // Update stats
     const counts = { high: 0, medium: 0, low: 0, unrated: 0 };
@@ -337,6 +381,100 @@ function displayResults(result) {
     }
 
     outputSection.style.display = 'block';
+}
+
+// "nda.pdf · 29 Sep 2026, 16:45 · Context: ..." plus a tag when the result came from the cache.
+function renderResultMeta(result) {
+    resultMeta.textContent = '';
+    if (!result.filename && !result.timestamp) {
+        resultMeta.style.display = 'none';
+        return;
+    }
+    const parts = [result.filename || 'Contract', formatDate(result.timestamp)];
+    parts.push(result.context ? `Context: ${result.context}` : 'No context given');
+    resultMeta.appendChild(document.createTextNode(parts.join(' · ')));
+    if (result.cached) {
+        resultMeta.appendChild(createElement('span', 'saved-tag',
+            '♻️ Saved result: same contract and context, no new AI call'));
+    }
+    resultMeta.style.display = 'block';
+}
+
+function formatDate(timestamp) {
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime())
+        ? 'Unknown date'
+        : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+}
+
+// ---------- History ----------
+
+const STATUS_LABELS = { done: 'Done', failed: 'Failed', processing: 'Processing' };
+
+async function loadHistory() {
+    const query = historyFilter.value ? `?${historyFilter.value}` : '';
+    let entries;
+    try {
+        const data = await fetchJson(`/api/analyses${query}`);
+        entries = Array.isArray(data && data.analyses) ? data.analyses : [];
+    } catch (error) {
+        console.error('Loading history failed:', error);
+        historyList.textContent = '';
+        showHistoryMessage('Could not load your saved analyses. Refresh the page to try again.');
+        return;
+    }
+
+    historyList.textContent = '';
+    if (entries.length === 0) {
+        showHistoryMessage(historyFilter.value
+            ? 'No saved analyses match this filter.'
+            : 'No saved analyses yet. Analyze a contract and it will appear here.');
+        return;
+    }
+    historyMessage.style.display = 'none';
+    entries.forEach(entry => {
+        try {
+            historyList.appendChild(renderHistoryItem(entry));
+        } catch (error) {
+            console.error('Could not render history entry:', error, entry);
+        }
+    });
+}
+
+function showHistoryMessage(message) {
+    historyMessage.textContent = message;
+    historyMessage.style.display = 'block';
+}
+
+function renderHistoryItem(entry) {
+    const status = STATUS_LABELS[entry.status] ? entry.status : 'processing';
+    const counts = entry.counts || {};
+
+    const item = document.createElement('li');
+    const button = createElement('button', 'history-item');
+    button.type = 'button';
+    button.addEventListener('click', () => openSavedAnalysis(entry.id));
+
+    const top = createElement('div', 'history-row');
+    top.appendChild(createElement('span', 'history-file', `📄 ${entry.filename || 'Contract'}`));
+    top.appendChild(createElement('span', 'history-date', formatDate(entry.timestamp)));
+    top.appendChild(createElement('span', `history-status ${status}`, STATUS_LABELS[status]));
+    button.appendChild(top);
+
+    const bottom = createElement('div', 'history-row');
+    bottom.appendChild(createElement('span', 'history-context',
+        entry.context ? `"${entry.context}"` : 'No context given'));
+    if (status === 'done') {
+        const risks = createElement('span', 'history-counts');
+        risks.appendChild(createElement('span', 'count high', `🔴 ${counts.high || 0}`));
+        risks.appendChild(createElement('span', 'count medium', `🟡 ${counts.medium || 0}`));
+        risks.appendChild(createElement('span', 'count low', `🟢 ${counts.low || 0}`));
+        bottom.appendChild(risks);
+    }
+    button.appendChild(bottom);
+
+    item.appendChild(button);
+    return item;
 }
 
 // Maps an AI-supplied risk level to high/medium/low, or 'unrated' if missing or unrecognised.
@@ -444,14 +582,14 @@ function showError(details) {
     errorSection.style.display = 'block';
 }
 
-// Re-runs the analysis with the same file and context after a failure.
+// Repeats whatever request last failed: an upload, a re-run, or opening a saved analysis.
 function retryAnalysis() {
     errorSection.style.display = 'none';
-    if (!selectedFile) {
+    if (!lastRequest) {
         resetForm();
         return;
     }
-    runAnalysis();
+    performAnalysis(lastRequest);
 }
 
 function resetForm() {
@@ -467,6 +605,8 @@ function resetForm() {
     progressFill.style.width = '0%';
     clearFileError();
     hideNotice();
+    resultMeta.style.display = 'none';
+    lastRequest = null;
 }
 
 function exportReport(format) {
@@ -519,3 +659,6 @@ function generateMarkdown(result) {
     
     return md;
 }
+
+// Show saved analyses as soon as the page opens
+loadHistory();

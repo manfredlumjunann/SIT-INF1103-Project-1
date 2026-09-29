@@ -73,6 +73,8 @@
                     </div>
                 </div>
 
+                <p id="result-meta" class="result-meta" style="display: none;"></p>
+
                 <div id="result-notice" class="result-notice" role="status" style="display: none;"></div>
 
                 <div id="clauses-container" class="clauses-container">
@@ -100,6 +102,22 @@
                 </div>
             </section>
         </main>
+
+        <!-- Saved analyses -->
+        <section class="history-card">
+            <div class="history-header">
+                <h2>My Analyses</h2>
+                <select id="history-filter" class="history-filter" aria-label="Filter saved analyses">
+                    <option value="">All analyses</option>
+                    <option value="risk=high">Has high-risk clauses</option>
+                    <option value="risk=medium">Has medium-risk clauses</option>
+                    <option value="risk=low">Has low-risk clauses</option>
+                    <option value="status=failed">Failed</option>
+                </select>
+            </div>
+            <p id="history-message" class="history-message" style="display: none;"></p>
+            <ul id="history-list" class="history-list"></ul>
+        </section>
     </div>
 
     <script src="app.js"></script>

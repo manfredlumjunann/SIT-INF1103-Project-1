@@ -6,6 +6,7 @@ Handles clause detection, risk assessment, case law research, and workaround gen
 
 import os
 import re
+import sys
 import json
 import asyncio
 import tempfile
@@ -33,10 +34,47 @@ except ImportError:
 from openai import OpenAI
 from firecrawl import FirecrawlApp
 
+# Data layer: in Docker data_manager.py is copied next to this file;
+# when run locally it lives in ../data-layer
+try:
+    import data_manager
+except ImportError:
+    sys.path.append(str(Path(__file__).resolve().parent.parent / 'data-layer'))
+    import data_manager
+
 load_dotenv()
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
+
+VALID_RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
+
+# Until login is implemented, every analysis belongs to this single guest account.
+GUEST_EMAIL = 'guest@contract-analyzer.local'
+
+
+def init_data_layer() -> str:
+    """Load all saved records, create the guest user if needed, and mark analyses that
+    were interrupted by a restart as failed. Returns the guest user's id."""
+    counts = data_manager.init_storage()
+    print(f"💾 Loaded saved records: {counts}")
+
+    guest = data_manager.find_user_by_email(GUEST_EMAIL)
+    if guest is None:
+        guest = data_manager.create_user(GUEST_EMAIL, '!no-login', 'Guest')
+
+    # Single worker process: anything still 'processing' at startup can never finish
+    for stale in data_manager.list_analyses(status='processing'):
+        data_manager.fail_analysis(stale['id'])
+    return guest['id']
+
+
+GUEST_USER_ID = init_data_layer()
+
+
+def get_current_user_id() -> str:
+    """Id of the user making the request. Temporary: always the guest until login exists."""
+    return GUEST_USER_ID
 
 # Configuration
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
@@ -260,7 +298,7 @@ def analyze_contract():
             return jsonify({'error': 'No contract file provided'}), 400
         
         file = request.files['contract']
-        context = request.form.get('context', '')
+        context = request.form.get('context', '').strip()
         
         if file.filename == '':
             return jsonify({'error': 'No file selected'}), 400
@@ -275,54 +313,152 @@ def analyze_contract():
             # Step 1: Extract text
             print("📄 Extracting text from document...")
             contract_text = extract_text_from_document(tmp_path)
-            
+
             if not contract_text.strip():
                 return jsonify({'error': 'Could not extract text from document'}), 400
-            
-            # Step 2: AI clause detection
-            print("🔍 Detecting clauses with AI...")
-            clauses = detect_clauses_with_ai(contract_text, context)
-            
-            if not clauses:
-                return jsonify({
-                    'clauses': [],
-                    'message': 'No problematic clauses detected',
-                    'timestamp': datetime.now().isoformat()
-                })
-            
-            # Step 3: Research each clause with Firecrawl
-            print("🔎 Researching case law...")
-            for clause in clauses:
-                clause['legal_references'] = research_clause_with_firecrawl(clause)
-            
-            # Step 4: Enhance workarounds
-            print("💡 Generating detailed workarounds...")
-            clauses = generate_workarounds_with_ai(clauses)
-            
-            # Ensure all required fields exist
-            for clause in clauses:
-                clause.setdefault('risk_level', 'MEDIUM')
-                clause.setdefault('issue_description', 'Potential risk identified')
-                clause.setdefault('workaround', 'Consult legal counsel')
-                clause.setdefault('legal_references', [])
-                clause.setdefault('line_number', None)
-            
-            return jsonify({
-                'clauses': clauses,
-                'total_flagged': len(clauses),
-                'timestamp': datetime.now().isoformat()
-            })
-            
+
+            return analyze_and_save(get_current_user_id(), filename, contract_text, context)
+
         finally:
             # Cleanup temp file
             os.unlink(tmp_path)
-            
-    except RuntimeError as e:
-        # AI failover exhausted
-        return jsonify({'error': str(e)}), 503
+
     except Exception as e:
-        print(f"Analysis error: {e}")
-        return jsonify({'error': f'Analysis failed: {str(e)}'}), 500
+        return analysis_error_response(e)
+
+
+def run_analysis_pipeline(contract_text: str, context: str) -> List[Dict]:
+    """AI clause detection, case-law research and workaround enhancement."""
+    # Step 2: AI clause detection
+    print("🔍 Detecting clauses with AI...")
+    clauses = detect_clauses_with_ai(contract_text, context)
+    if not clauses:
+        return []
+
+    # Step 3: Research each clause with Firecrawl
+    print("🔎 Researching case law...")
+    for clause in clauses:
+        clause['legal_references'] = research_clause_with_firecrawl(clause)
+
+    # Step 4: Enhance workarounds
+    print("💡 Generating detailed workarounds...")
+    clauses = generate_workarounds_with_ai(clauses)
+
+    # Ensure all required fields exist and risk levels are ones the system understands
+    normalised = []
+    for clause in clauses:
+        if not isinstance(clause, dict):
+            continue
+        clause.setdefault('issue_description', 'Potential risk identified')
+        clause.setdefault('workaround', 'Consult legal counsel')
+        clause.setdefault('legal_references', [])
+        clause.setdefault('line_number', None)
+        risk_level = str(clause.get('risk_level') or '').strip().upper()
+        clause['risk_level'] = risk_level if risk_level in VALID_RISK_LEVELS else 'MEDIUM'
+        normalised.append(clause)
+    return normalised
+
+
+def analyze_and_save(owner_id: str, filename: str, contract_text: str, context: str):
+    """Return the saved result for an identical contract + context, otherwise run the
+    pipeline and persist it. Empty results are never reused, so a bad AI response
+    does not get stuck in the cache."""
+    contract_hash = data_manager.compute_contract_hash(contract_text, context)
+    cached = data_manager.find_analysis_by_hash(owner_id, contract_hash)
+    if cached and cached['clauses']:
+        print(f"♻️ Returning saved analysis {cached['id']} (same contract and context)")
+        return jsonify(analysis_response(cached, cached_result=True))
+
+    analysis = data_manager.create_analysis(owner_id, filename, contract_text, context)
+    try:
+        clauses = run_analysis_pipeline(contract_text, context)
+        saved = data_manager.complete_analysis(analysis['id'], clauses)
+    except Exception:
+        try:
+            data_manager.fail_analysis(analysis['id'])
+        except Exception as save_error:
+            print(f"Could not mark analysis {analysis['id']} as failed: {save_error}")
+        raise
+    return jsonify(analysis_response(saved))
+
+
+def analysis_error_response(error: Exception):
+    if isinstance(error, RuntimeError):
+        # AI failover exhausted
+        return jsonify({'error': str(error)}), 503
+    print(f"Analysis error: {error}")
+    return jsonify({'error': f'Analysis failed: {str(error)}'}), 500
+
+
+def analysis_response(analysis: Dict, cached_result: bool = False) -> Dict:
+    """Full saved analysis in the shape the frontend renders."""
+    clauses = []
+    for clause in analysis['clauses']:
+        view = {key: value for key, value in clause.items() if key != 'references'}
+        view['legal_references'] = data_manager.resolve_references(clause)
+        view['line_number'] = clause['location']['raw']
+        clauses.append(view)
+
+    response = {
+        'id': analysis['id'],
+        'filename': analysis['filename'],
+        'context': analysis['context'],
+        'status': analysis['status'],
+        'counts': analysis['counts'],
+        'clauses': clauses,
+        'total_flagged': len(clauses),
+        'timestamp': analysis['created_at'],
+        'cached': cached_result,
+    }
+    if not clauses:
+        response['message'] = ('This analysis failed before any clauses were saved.'
+                               if analysis['status'] == 'failed'
+                               else 'No problematic clauses detected')
+    return response
+
+
+def analysis_summary(analysis: Dict) -> Dict:
+    """Lightweight history entry (no contract text or clauses)."""
+    return {
+        'id': analysis['id'],
+        'filename': analysis['filename'],
+        'context': analysis['context'],
+        'status': analysis['status'],
+        'counts': analysis['counts'],
+        'total_flagged': sum(analysis['counts'].values()),
+        'timestamp': analysis['created_at'],
+    }
+
+
+def get_owned_analysis(analysis_id: str) -> Optional[Dict]:
+    """The analysis if it exists and belongs to the current user, else None."""
+    analysis = data_manager.get_analysis(analysis_id)
+    if analysis is None or analysis['owner_id'] != get_current_user_id():
+        return None
+    return analysis
+
+
+@app.route('/api/analyses', methods=['GET'])
+def list_saved_analyses():
+    """History list, newest first. Optional filters: ?status=done|failed|processing&risk=high|medium|low"""
+    try:
+        analyses = data_manager.list_analyses(
+            owner_id=get_current_user_id(),
+            status=request.args.get('status') or None,
+            risk_level=request.args.get('risk') or None,
+        )
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+    return jsonify({'analyses': [analysis_summary(a) for a in analyses]})
+
+
+@app.route('/api/analyses/<analysis_id>', methods=['GET'])
+def get_saved_analysis(analysis_id):
+    """Reopen a saved analysis without calling the AI."""
+    analysis = get_owned_analysis(analysis_id)
+    if analysis is None:
+        return jsonify({'error': 'Analysis not found'}), 404
+    return jsonify(analysis_response(analysis))
 
 
 @app.route('/api/health', methods=['GET'])
