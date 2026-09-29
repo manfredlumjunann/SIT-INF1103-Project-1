@@ -589,6 +589,81 @@ textarea:focus {
     font-size: 0.85rem;
 }
 
+/* Login / registration page */
+.auth-card {
+    max-width: 440px;
+    margin: 0 auto;
+}
+
+.auth-tabs {
+    display: flex;
+    gap: 0.5rem;
+    background: #edf2f7;
+    padding: 0.3rem;
+    border-radius: 10px;
+    margin-bottom: 1.75rem;
+}
+
+.auth-tab {
+    flex: 1;
+    padding: 0.6rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: #4a5568;
+    font-size: 0.95rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s, color 0.2s;
+}
+
+.auth-tab.active {
+    background: white;
+    color: #5a67d8;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
+input[type="text"],
+input[type="email"],
+input[type="password"] {
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: 2px solid #e2e8f0;
+    border-radius: 8px;
+    font-size: 1rem;
+    font-family: inherit;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus {
+    outline: none;
+    border-color: #667eea;
+}
+
+input[aria-invalid="true"],
+input[aria-invalid="true"]:focus {
+    border-color: #fc8181;
+}
+
+.field-hint {
+    font-size: 0.85rem;
+    color: #718096;
+    margin-top: 0.35rem;
+}
+
+.auth-info {
+    color: #2b6cb0;
+    background: #ebf8ff;
+    border: 1px solid #90cdf4;
+    border-radius: 6px;
+    padding: 0.6rem 1rem;
+    margin-top: 0.5rem;
+    font-size: 0.9rem;
+}
+
 .clause-card.unrated { border-left: 5px solid #a0aec0; }
 .risk-badge.unrated { background: #edf2f7; color: #4a5568; }
 

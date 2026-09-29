@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sign In - Contract Clause Analyzer</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📄 Contract Clause Analyzer</h1>
+            <p class="subtitle">AI-powered contract analysis with case law references</p>
+        </header>
+
+        <main class="auth-card">
+            <div class="auth-tabs" role="tablist">
+                <button type="button" id="signin-tab" class="auth-tab active" role="tab" aria-selected="true">Sign In</button>
+                <button type="button" id="register-tab" class="auth-tab" role="tab" aria-selected="false">Create Account</button>
+            </div>
+
+            <form id="auth-form" novalidate>
+                <div class="form-group register-only" style="display: none;">
+                    <label for="name">Full Name</label>
+                    <input type="text" id="name" name="name" autocomplete="name" maxlength="100">
+                </div>
+
+                <div class="form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" autocomplete="username" maxlength="254" required>
+                </div>
+
+                <div class="form-group">
+                    <label for="password">Password</label>
+                    <input type="password" id="password" name="password" autocomplete="current-password" required>
+                    <p class="field-hint register-only" style="display: none;">At least 8 characters.</p>
+                </div>
+
+                <div class="form-group register-only" style="display: none;">
+                    <label for="confirm-password">Confirm Password</label>
+                    <input type="password" id="confirm-password" name="confirm-password" autocomplete="new-password">
+                </div>
+
+                <p id="auth-error" class="field-error" role="alert" style="display: none;"></p>
+                <p id="auth-info" class="auth-info" role="status" style="display: none;"></p>
+
+                <button type="submit" id="auth-submit" class="analyze-btn">Sign In</button>
+            </form>
+        </main>
+    </div>
+
+    <script src="login.js"></script>
+</body>
+</html>
