@@ -33,17 +33,18 @@
                         <div class="drop-zone-content">
                             <span class="drop-icon">📁</span>
                             <p>Drag & drop your contract file here</p>
-                            <p class="supported-formats">Supported: PDF, DOCX, DOC, TXT, RTF</p>
+                            <p class="supported-formats">Supported: PDF, DOCX, TXT (max 50 MB)</p>
                             <button type="button" class="browse-btn" onclick="document.getElementById('file-input').click()">
                                 Browse Files
                             </button>
                         </div>
-                        <input type="file" id="file-input" accept=".pdf,.docx,.doc,.txt,.rtf" hidden>
+                        <input type="file" id="file-input" accept=".pdf,.docx,.txt" hidden>
                     </div>
                     <div id="file-info" class="file-info" style="display: none;">
                         <span class="file-name"></span>
                         <button class="remove-file" onclick="removeFile()">✕</button>
                     </div>
+                    <p id="file-error" class="field-error" role="alert" style="display: none;"></p>
                 </div>
 
                 <button id="analyze-btn" class="analyze-btn" disabled>
@@ -72,6 +73,8 @@
                     </div>
                 </div>
 
+                <div id="result-notice" class="result-notice" role="status" style="display: none;"></div>
+
                 <div id="clauses-container" class="clauses-container">
                     <!-- Flagged clauses will be injected here -->
                 </div>
@@ -85,11 +88,15 @@
 
             <!-- Error Section -->
             <section id="error-section" class="error-section" style="display: none;">
-                <div class="error-content">
+                <div class="error-content" role="alert">
                     <span class="error-icon">⚠️</span>
-                    <h3>Analysis Failed</h3>
+                    <h3 id="error-title">Analysis Failed</h3>
                     <p id="error-message"></p>
-                    <button onclick="resetForm()" class="retry-btn">Try Again</button>
+                    <p id="error-hint" class="error-hint"></p>
+                    <div class="error-actions">
+                        <button onclick="retryAnalysis()" class="retry-btn">Try Again</button>
+                        <button onclick="resetForm()" class="reset-btn">Start Over</button>
+                    </div>
                 </div>
             </section>
         </main>
