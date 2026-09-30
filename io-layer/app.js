@@ -666,14 +666,50 @@ async function initPage() {
     try {
         const response = await fetch('/api/auth/me');
         if (response.status === 401) {
-            window.location.replace('/login.html');
+            goToLoginPage();
             return;
         }
+        const data = await response.json();
+        showSignedInUser(data && data.user);
     } catch (error) {
         console.error('Checking sign-in failed:', error);
     }
     document.body.classList.remove('auth-pending');
     loadHistory();
 }
+
+function showSignedInUser(user) {
+    document.getElementById('user-name').textContent = user && user.name ? `Signed in as ${user.name}` : '';
+}
+
+function goToLoginPage() {
+    window.location.replace('/login.html');
+}
+
+async function logout() {
+    const logoutBtn = document.getElementById('logout-btn');
+    logoutBtn.disabled = true;
+    try {
+        const response = await fetch('/api/auth/logout', { method: 'POST' });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        goToLoginPage();
+    } catch (error) {
+        console.error('Sign out failed:', error);
+        logoutBtn.disabled = false;
+        showError({
+            title: 'Could Not Sign Out',
+            message: 'The server could not be reached, so you are still signed in.',
+            hint: 'Check that the application is running and try again.'
+        });
+    }
+}
+
+document.getElementById('logout-btn').addEventListener('click', logout);
+
+// The back button can restore this page from the browser's cache without re-running scripts,
+// so re-check the session when that happens (e.g. after signing out).
+window.addEventListener('pageshow', (event) => {
+    if (event.persisted) initPage();
+});
 
 initPage();

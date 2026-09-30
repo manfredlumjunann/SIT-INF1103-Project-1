@@ -594,6 +594,43 @@ body.auth-pending .container {
     visibility: hidden;
 }
 
+/* Signed-in user bar on the main page */
+.user-bar {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+    color: white;
+    font-size: 0.9rem;
+}
+
+.user-name {
+    opacity: 0.9;
+}
+
+.logout-btn {
+    padding: 0.45rem 1rem;
+    background: rgba(255, 255, 255, 0.15);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.logout-btn:hover:not(:disabled) {
+    background: rgba(255, 255, 255, 0.3);
+}
+
+.logout-btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
 /* Login / registration page */
 .auth-card {
     max-width: 440px;
