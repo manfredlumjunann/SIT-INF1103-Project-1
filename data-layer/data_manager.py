@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import shutil
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
@@ -25,6 +26,20 @@ ANALYSIS_STATUSES = ('processing', 'done', 'failed')
 RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
 TICKET_STATUSES = ('open', 'in_progress', 'resolved')
 VERIFICATION_STATES = ('unverified', 'verified_sg', 'rejected')
+
+# Fields every stored record must have (and their types). Records that do not match are
+# skipped on load so one damaged entry cannot crash lookups for everyone else.
+REQUIRED_FIELDS: Dict[str, Dict[str, type]] = {
+    'users': {'id': str, 'username': str, 'password_hash': str, 'role': str, 'created_at': str},
+    'analyses': {'id': str, 'owner_id': str, 'status': str, 'filename': str, 'context': str,
+                 'contract_text': str, 'contract_hash': str, 'counts': dict, 'clauses': list,
+                 'created_at': str},
+    'references': {'id': str, 'url': str, 'title': str, 'domain': str, 'verification': str},
+    'tickets': {'id': str, 'owner_id': str, 'analysis_id': str, 'subject': str, 'status': str,
+                'messages': list, 'created_at': str},
+}
+# Clause fields the app reads when displaying an analysis
+REQUIRED_CLAUSE_FIELDS: Dict[str, type] = {'id': str, 'risk_level': str, 'location': dict, 'references': list}
 
 _store: Dict[str, List[Record]] = {name: [] for name in COLLECTIONS}
 _loaded = False
@@ -55,24 +70,87 @@ def _file_path(collection: str) -> Path:
 
 
 def _load_collection(collection: str) -> List[Record]:
+    """Read one collection file. A missing file starts empty. A file that is not a JSON
+    list is moved aside and starts empty. Individual invalid records are skipped."""
     path = _file_path(collection)
     if not path.exists():
         return []
     try:
         with path.open(encoding='utf-8') as f:
             data = json.load(f)
-        if not isinstance(data, list) or not all(isinstance(r, dict) for r in data):
-            raise ValueError("expected a JSON list of objects")
-        return data
+        if not isinstance(data, list):
+            raise ValueError("expected a JSON list of records")
     except (OSError, ValueError) as e:
-        stamp = datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
-        quarantine = path.with_name(f'{path.name}.corrupt-{stamp}')
+        quarantine = path.with_name(f'{path.name}.corrupt-{_file_timestamp()}')
         logger.warning("Corrupt data file %s (%s); moved to %s", path, e, quarantine.name)
         try:
             path.replace(quarantine)
         except OSError as move_error:
             logger.error("Could not move corrupt file %s: %s", path, move_error)
         return []
+
+    valid: List[Record] = []
+    seen_ids = set()
+    problems = []
+    for position, record in enumerate(data):
+        problem = _record_problem(collection, record)
+        if problem is None and record['id'] in seen_ids:
+            problem = 'duplicate id'
+        if problem is not None:
+            label = record.get('id') if isinstance(record, dict) else None
+            problems.append(f"item {position} ({label if label is not None else 'no id'}): {problem}")
+            continue
+        seen_ids.add(record['id'])
+        valid.append(record)
+
+    if problems:
+        _set_aside_invalid_records(collection, path, valid, problems)
+    return valid
+
+
+def _record_problem(collection: str, record: Any) -> Optional[str]:
+    """Why a stored record is unusable, or None if it has every required field."""
+    if not isinstance(record, dict):
+        return 'not an object'
+    problem = _missing_or_wrong_field(record, REQUIRED_FIELDS[collection])
+    if problem is not None:
+        return problem
+    if collection == 'analyses':
+        for number, clause in enumerate(record['clauses'], start=1):
+            if not isinstance(clause, dict):
+                return f'clause {number} is not an object'
+            problem = _missing_or_wrong_field(clause, REQUIRED_CLAUSE_FIELDS)
+            if problem is not None:
+                return f'clause {number}: {problem}'
+    return None
+
+
+def _missing_or_wrong_field(record: Record, fields: Dict[str, type]) -> Optional[str]:
+    for field, expected_type in fields.items():
+        if field not in record:
+            return f"missing '{field}'"
+        if not isinstance(record[field], expected_type):
+            return f"'{field}' should be {expected_type.__name__}"
+    return None
+
+
+def _set_aside_invalid_records(collection: str, path: Path, valid: List[Record],
+                               problems: List[str]) -> None:
+    """Keep a copy of the original file, then rewrite it with only the valid records
+    so the same problems are not reported again on the next start."""
+    backup = path.with_name(f'{path.name}.invalid-{_file_timestamp()}')
+    logger.warning("Skipped %d invalid record(s) in %s (original kept as %s): %s",
+                   len(problems), path.name, backup.name, '; '.join(problems))
+    try:
+        shutil.copy2(path, backup)
+        _write_collection(collection, valid)
+    except OSError as e:
+        # The invalid records are still skipped in memory; the file is left as it was
+        logger.error("Could not back up or clean %s: %s", path, e)
+
+
+def _file_timestamp() -> str:
+    return datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
 
 
 def _write_collection(collection: str, records: List[Record]) -> None:
@@ -209,7 +287,7 @@ def create_analysis(owner_id: str, filename: str, contract_text: str,
             'owner_id': owner_id,
             'status': 'processing',
             'filename': str(filename or ''),
-            'context': context,
+            'context': str(context or ''),
             'contract_text': contract_text,
             'contract_hash': compute_contract_hash(contract_text, context),
             'counts': {'high': 0, 'medium': 0, 'low': 0},
