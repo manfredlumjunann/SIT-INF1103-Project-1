@@ -15,6 +15,7 @@ from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
 import functools
+import logging
 import secrets
 
 from flask import Flask, request, jsonify, session, g
@@ -46,6 +47,11 @@ except ImportError:
     import data_manager
 
 load_dotenv()
+
+# Server-side log (visible with `docker compose logs logic-layer`). Error details go here,
+# never into responses sent to the browser.
+logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s [%(name)s] %(message)s')
+logger = logging.getLogger('contract-analyzer')
 
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
@@ -488,11 +494,18 @@ def analyze_and_save(owner_id: str, filename: str, contract_text: str, context: 
 
 
 def analysis_error_response(error: Exception):
+    """Log the full error server-side and send the user a generic message.
+    Raw exception text can contain file paths or AI provider responses, so it is never returned."""
+    reference = secrets.token_hex(4)
     if isinstance(error, RuntimeError):
         # AI failover exhausted
-        return jsonify({'error': str(error)}), 503
-    print(f"Analysis error: {error}")
-    return jsonify({'error': f'Analysis failed: {str(error)}'}), 500
+        logger.warning("AI service unavailable [ref %s]: %s", reference, error)
+        return jsonify({'error': 'The AI service is currently unavailable. Please try again in a few minutes.',
+                        'reference': reference}), 503
+    logger.exception("Analysis failed [ref %s]", reference, exc_info=error)
+    return jsonify({'error': 'Something went wrong while analysing the contract. '
+                             f'Please try again. (Reference: {reference})',
+                    'reference': reference}), 500
 
 
 def analysis_response(analysis: Dict, cached_result: bool = False) -> Dict:
