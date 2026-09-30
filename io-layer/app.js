@@ -230,6 +230,10 @@ async function fetchJson(url, options = {}) {
                 'Check that the application is running and your internet connection is working, then try again.');
         }
 
+        if (response.status === 401) {
+            // Session expired or signed out in another tab
+            goToLoginPage();
+        }
         if (!response.ok) {
             const serverMessage = await readServerError(response);
             const details = describeHttpError(response.status, serverMessage);
@@ -264,6 +268,12 @@ function describeHttpError(status, serverMessage) {
                 title: 'Could Not Analyze This File',
                 message: serverMessage || 'The file could not be processed.',
                 hint: 'Check that the file is a readable PDF, DOCX or TXT. Scanned PDFs (images of pages) contain no text to analyze.'
+            };
+        case 401:
+            return {
+                title: 'Signed Out',
+                message: 'Your session has ended.',
+                hint: 'Taking you to the sign-in page...'
             };
         case 404:
             return {
