@@ -96,12 +96,12 @@ def get_current_user_id() -> str:
 # Authentication
 
 MIN_PASSWORD_LENGTH = 8
-EMAIL_PATTERN = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-LOGIN_FAILED_MESSAGE = 'Incorrect email or password.'
+USERNAME_RULES_MESSAGE = "Username must be 3-30 characters using letters, numbers, '.', '_' or '-'."
+LOGIN_FAILED_MESSAGE = 'Incorrect username or password.'
 
 
 def public_user(user: Dict) -> Dict:
-    return {'id': user['id'], 'email': user['email'], 'name': user['name'], 'role': user['role']}
+    return {'id': user['id'], 'username': user['username'], 'role': user['role']}
 
 
 def start_session(user: Dict) -> None:
@@ -128,22 +128,19 @@ def read_json_fields(*names: str) -> Dict[str, str]:
 
 @app.route('/api/auth/register', methods=['POST'])
 def register():
-    fields = read_json_fields('name', 'email', 'password')
-    name = fields['name'].strip()
-    email = fields['email'].strip().lower()
+    fields = read_json_fields('username', 'password')
+    username = fields['username'].strip().lower()
     password = fields['password']
 
-    if not name:
-        return jsonify({'error': 'Please enter your full name.'}), 400
-    if not EMAIL_PATTERN.match(email):
-        return jsonify({'error': 'Please enter a valid email address.'}), 400
+    if not data_manager.USERNAME_PATTERN.match(username):
+        return jsonify({'error': USERNAME_RULES_MESSAGE}), 400
     if len(password) < MIN_PASSWORD_LENGTH:
         return jsonify({'error': f'Password must be at least {MIN_PASSWORD_LENGTH} characters.'}), 400
-    if data_manager.find_user_by_email(email):
-        return jsonify({'error': 'An account with this email already exists. Please sign in instead.'}), 409
+    if data_manager.find_user_by_username(username):
+        return jsonify({'error': 'That username is already taken. Please choose another.'}), 409
 
     try:
-        user = data_manager.create_user(email, generate_password_hash(password), name)
+        user = data_manager.create_user(username, generate_password_hash(password))
     except ValueError as e:
         return jsonify({'error': str(e)}), 400
 
@@ -153,14 +150,14 @@ def register():
 
 @app.route('/api/auth/login', methods=['POST'])
 def login():
-    fields = read_json_fields('email', 'password')
-    email = fields['email'].strip().lower()
+    fields = read_json_fields('username', 'password')
+    username = fields['username']
     password = fields['password']
 
-    if not email or not password:
-        return jsonify({'error': 'Please enter your email and password.'}), 400
+    if not username.strip() or not password:
+        return jsonify({'error': 'Please enter your username and password.'}), 400
 
-    user = data_manager.find_user_by_email(email)
+    user = data_manager.find_user_by_username(username)
     if user is None or not check_password_hash(user['password_hash'], password):
         return jsonify({'error': LOGIN_FAILED_MESSAGE}), 401
 

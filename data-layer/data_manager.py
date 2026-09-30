@@ -20,6 +20,7 @@ COLLECTIONS = ('users', 'analyses', 'references', 'tickets')
 ID_PREFIXES = {'users': 'us', 'analyses': 'an', 'tickets': 'tk'}
 
 USER_ROLES = ('customer', 'admin')
+USERNAME_PATTERN = re.compile(r'^[a-z0-9._-]{3,30}$')
 ANALYSIS_STATUSES = ('processing', 'done', 'failed')
 RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
 TICKET_STATUSES = ('open', 'in_progress', 'resolved')
@@ -146,28 +147,30 @@ def _newest_first(records: List[Record]) -> List[Record]:
 
 # Users
 
-def create_user(email: str, password_hash: str, name: str,
-                company_name: str = '', role: str = 'customer') -> Record:
-    """Create a user. The password must already be hashed by the caller."""
-    email = _require_text(email, 'email').lower()
-    if '@' not in email:
-        raise ValueError(f"Invalid email '{email}'")
+def create_user(username: str, password_hash: str, role: str = 'customer') -> Record:
+    """Create a user. Usernames are unique regardless of case and stored in lowercase.
+    The password must already be hashed by the caller."""
+    username = _normalise_username(username)
+    if not USERNAME_PATTERN.match(username):
+        raise ValueError("Username must be 3-30 characters: letters, numbers, '.', '_' or '-'")
     _require_choice(role, USER_ROLES, 'role')
     record = {
         'id': '',
-        'email': email,
+        'username': username,
         'password_hash': _require_text(password_hash, 'password_hash'),
-        'name': _require_text(name, 'name'),
-        'company_name': str(company_name or '').strip(),
         'role': role,
         'created_at': _now(),
     }
     with _lock:
         _ensure_loaded()
-        if any(u['email'] == email for u in _store['users']):
-            raise ValueError(f"Email already registered: {email}")
+        if any(u['username'] == username for u in _store['users']):
+            raise ValueError(f"Username already taken: {username}")
         record['id'] = _next_id('users')
         return _append('users', record)
+
+
+def _normalise_username(username: Any) -> str:
+    return str(username or '').strip().lower()
 
 
 def get_user(user_id: str) -> Optional[Record]:
@@ -176,12 +179,12 @@ def get_user(user_id: str) -> Optional[Record]:
         return copy.deepcopy(_find('users', user_id))
 
 
-def find_user_by_email(email: str) -> Optional[Record]:
-    email = str(email or '').strip().lower()
+def find_user_by_username(username: str) -> Optional[Record]:
+    username = _normalise_username(username)
     with _lock:
         _ensure_loaded()
         for user in _store['users']:
-            if user['email'] == email:
+            if user['username'] == username:
                 return copy.deepcopy(user)
     return None
 
