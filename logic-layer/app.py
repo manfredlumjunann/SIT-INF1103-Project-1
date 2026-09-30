@@ -13,10 +13,12 @@ import tempfile
 from pathlib import Path
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, asdict
-from datetime import datetime
+from datetime import datetime, timedelta
+import secrets
 
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 from werkzeug.utils import secure_filename
+from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
 
 # Document parsing
@@ -47,6 +49,17 @@ load_dotenv()
 app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 
+# Session cookie used for login. SECRET_KEY signs the cookie; without a fixed key in .env
+# a random one is used and everyone is signed out whenever the server restarts.
+app.secret_key = os.getenv('SECRET_KEY') or secrets.token_hex(32)
+if not os.getenv('SECRET_KEY'):
+    print("⚠️ SECRET_KEY not set in .env - using a temporary key; sessions reset on restart")
+app.config.update(
+    SESSION_COOKIE_HTTPONLY=True,
+    SESSION_COOKIE_SAMESITE='Lax',
+    PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
+)
+
 VALID_RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
 
 # Until login is implemented, every analysis belongs to this single guest account.
@@ -75,6 +88,90 @@ GUEST_USER_ID = init_data_layer()
 def get_current_user_id() -> str:
     """Id of the user making the request. Temporary: always the guest until login exists."""
     return GUEST_USER_ID
+
+
+# Authentication
+
+MIN_PASSWORD_LENGTH = 8
+EMAIL_PATTERN = re.compile(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+LOGIN_FAILED_MESSAGE = 'Incorrect email or password.'
+
+
+def public_user(user: Dict) -> Dict:
+    return {'id': user['id'], 'email': user['email'], 'name': user['name'], 'role': user['role']}
+
+
+def start_session(user: Dict) -> None:
+    # Clear first so a session id set before login cannot be reused afterwards
+    session.clear()
+    session.permanent = True
+    session['user_id'] = user['id']
+
+
+def get_session_user() -> Optional[Dict]:
+    user_id = session.get('user_id')
+    if not user_id:
+        return None
+    user = data_manager.get_user(user_id)
+    if user is None:
+        session.clear()
+    return user
+
+
+def read_json_fields(*names: str) -> Dict[str, str]:
+    payload = request.get_json(silent=True) or {}
+    return {name: str(payload.get(name) or '') for name in names}
+
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    fields = read_json_fields('name', 'email', 'password')
+    name = fields['name'].strip()
+    email = fields['email'].strip().lower()
+    password = fields['password']
+
+    if not name:
+        return jsonify({'error': 'Please enter your full name.'}), 400
+    if not EMAIL_PATTERN.match(email):
+        return jsonify({'error': 'Please enter a valid email address.'}), 400
+    if len(password) < MIN_PASSWORD_LENGTH:
+        return jsonify({'error': f'Password must be at least {MIN_PASSWORD_LENGTH} characters.'}), 400
+    if email == GUEST_EMAIL or data_manager.find_user_by_email(email):
+        return jsonify({'error': 'An account with this email already exists. Please sign in instead.'}), 409
+
+    try:
+        user = data_manager.create_user(email, generate_password_hash(password), name)
+    except ValueError as e:
+        return jsonify({'error': str(e)}), 400
+
+    start_session(user)
+    return jsonify({'user': public_user(user)}), 201
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    fields = read_json_fields('email', 'password')
+    email = fields['email'].strip().lower()
+    password = fields['password']
+
+    if not email or not password:
+        return jsonify({'error': 'Please enter your email and password.'}), 400
+
+    user = data_manager.find_user_by_email(email)
+    if user is None or email == GUEST_EMAIL or not check_password_hash(user['password_hash'], password):
+        return jsonify({'error': LOGIN_FAILED_MESSAGE}), 401
+
+    start_session(user)
+    return jsonify({'user': public_user(user)})
+
+
+@app.route('/api/auth/me', methods=['GET'])
+def current_user():
+    """Who is signed in; 401 if nobody is."""
+    user = get_session_user()
+    if user is None:
+        return jsonify({'error': 'Not signed in'}), 401
+    return jsonify({'user': public_user(user)})
 
 # Configuration
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')

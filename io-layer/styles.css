@@ -589,6 +589,11 @@ textarea:focus {
     font-size: 0.85rem;
 }
 
+/* Main page stays hidden until the sign-in check finishes */
+body.auth-pending .container {
+    visibility: hidden;
+}
+
 /* Login / registration page */
 .auth-card {
     max-width: 440px;
@@ -652,16 +657,6 @@ input[aria-invalid="true"]:focus {
     font-size: 0.85rem;
     color: #718096;
     margin-top: 0.35rem;
-}
-
-.auth-info {
-    color: #2b6cb0;
-    background: #ebf8ff;
-    border: 1px solid #90cdf4;
-    border-radius: 6px;
-    padding: 0.6rem 1rem;
-    margin-top: 0.5rem;
-    font-size: 0.9rem;
 }
 
 .clause-card.unrated { border-left: 5px solid #a0aec0; }
