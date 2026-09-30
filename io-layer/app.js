@@ -660,5 +660,20 @@ function generateMarkdown(result) {
     return md;
 }
 
-// Show saved analyses as soon as the page opens
-loadHistory();
+
+// Only signed-in users may use the main page; everyone else goes to the login page.
+async function initPage() {
+    try {
+        const response = await fetch('/api/auth/me');
+        if (response.status === 401) {
+            window.location.replace('/login.html');
+            return;
+        }
+    } catch (error) {
+        console.error('Checking sign-in failed:', error);
+    }
+    document.body.classList.remove('auth-pending');
+    loadHistory();
+}
+
+initPage();

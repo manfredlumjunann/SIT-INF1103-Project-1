@@ -10,7 +10,6 @@ const signinTab = document.getElementById('signin-tab');
 const registerTab = document.getElementById('register-tab');
 const submitBtn = document.getElementById('auth-submit');
 const authError = document.getElementById('auth-error');
-const authInfo = document.getElementById('auth-info');
 const passwordInput = document.getElementById('password');
 
 signinTab.addEventListener('click', () => setMode('signin'));
@@ -66,7 +65,7 @@ function validateForm() {
     return null;
 }
 
-function handleSubmit(event) {
+async function handleSubmit(event) {
     event.preventDefault();
     clearMessages();
 
@@ -76,11 +75,61 @@ function handleSubmit(event) {
         return;
     }
 
-    // Placeholder until the backend login routes exist (step 2)
-    showInfo(mode === 'register'
-        ? 'Form is valid. Account creation will be connected in the next step.'
-        : 'Form is valid. Sign-in will be connected in the next step.');
+    const registering = mode === 'register';
+    const payload = { email: fieldValue('email'), password: passwordInput.value };
+    if (registering) payload.name = fieldValue('name');
+
+    submitBtn.disabled = true;
+    submitBtn.textContent = registering ? 'Creating account...' : 'Signing in...';
+    try {
+        const response = await fetch(registering ? '/api/auth/register' : '/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (response.ok) {
+            goToMainPage();
+            return;
+        }
+        showError(await describeAuthError(response), registering && response.status === 409 ? 'email' : null);
+        if (response.status === 401) passwordInput.value = '';
+    } catch (error) {
+        console.error('Auth request failed:', error);
+        showError('Could not reach the server. Check that the application is running and try again.');
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = registering ? 'Create Account' : 'Sign In';
+    }
 }
+
+async function describeAuthError(response) {
+    try {
+        const data = await response.json();
+        if (data && data.error) return String(data.error);
+    } catch (error) {
+        // fall through to the generic messages below
+    }
+    if (response.status >= 500) {
+        return 'The server is not responding. Wait a moment and try again.';
+    }
+    return 'Something went wrong. Please try again.';
+}
+
+function goToMainPage() {
+    window.location.replace('/');
+}
+
+// Skip the form entirely if this browser is already signed in.
+async function redirectIfSignedIn() {
+    try {
+        const response = await fetch('/api/auth/me');
+        if (response.ok) goToMainPage();
+    } catch (error) {
+        // Server unreachable: stay on the form; submitting will report the problem
+    }
+}
+
+redirectIfSignedIn();
 
 function showError(message, fieldId) {
     authError.textContent = message;
@@ -92,15 +141,8 @@ function showError(message, fieldId) {
     }
 }
 
-function showInfo(message) {
-    authInfo.textContent = message;
-    authInfo.style.display = 'block';
-}
-
 function clearMessages() {
     authError.textContent = '';
     authError.style.display = 'none';
-    authInfo.textContent = '';
-    authInfo.style.display = 'none';
     authForm.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
 }
