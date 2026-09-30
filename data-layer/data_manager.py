@@ -17,14 +17,13 @@ Record = Dict[str, Any]
 
 DATA_DIR = Path(os.getenv('DATA_DIR', str(Path(__file__).with_name('data'))))
 
-COLLECTIONS = ('users', 'analyses', 'references', 'tickets')
-ID_PREFIXES = {'users': 'us', 'analyses': 'an', 'tickets': 'tk'}
+COLLECTIONS = ('users', 'analyses', 'references')
+ID_PREFIXES = {'users': 'us', 'analyses': 'an'}
 
 USER_ROLES = ('customer', 'admin')
 USERNAME_PATTERN = re.compile(r'^[a-z0-9._-]{3,30}$')
 ANALYSIS_STATUSES = ('processing', 'done', 'failed')
 RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
-TICKET_STATUSES = ('open', 'in_progress', 'resolved')
 VERIFICATION_STATES = ('unverified', 'verified_sg', 'rejected')
 
 # Fields every stored record must have (and their types). Records that do not match are
@@ -35,8 +34,6 @@ REQUIRED_FIELDS: Dict[str, Dict[str, type]] = {
                  'contract_text': str, 'contract_hash': str, 'counts': dict, 'clauses': list,
                  'created_at': str},
     'references': {'id': str, 'url': str, 'title': str, 'domain': str, 'verification': str},
-    'tickets': {'id': str, 'owner_id': str, 'analysis_id': str, 'subject': str, 'status': str,
-                'messages': list, 'created_at': str},
 }
 # Clause fields the app reads when displaying an analysis
 REQUIRED_CLAUSE_FIELDS: Dict[str, type] = {'id': str, 'risk_level': str, 'location': dict, 'references': list}
@@ -44,6 +41,8 @@ REQUIRED_CLAUSE_FIELDS: Dict[str, type] = {'id': str, 'risk_level': str, 'locati
 _store: Dict[str, List[Record]] = {name: [] for name in COLLECTIONS}
 _loaded = False
 _lock = threading.RLock()
+
+# Storage: loading, validation and atomic writes
 
 def init_storage(data_dir: Optional[Union[str, Path]] = None) -> Dict[str, int]:
     """Load every collection from disk into memory. Returns record counts."""
@@ -266,8 +265,7 @@ def find_user_by_username(username: str) -> Optional[Record]:
                 return copy.deepcopy(user)
     return None
 
-
-# analysis and clauses
+# Analyses and clauses
 
 def compute_contract_hash(contract_text: str, context: str = '') -> str:
     """Identical contract text AND context produce the same hash, so a repeat
@@ -421,7 +419,6 @@ def _parse_location(raw: Any) -> Record:
         'raw': text,
     }
 
-
 # References
 
 def _reference_id(url: str) -> str:
@@ -465,85 +462,3 @@ def set_reference_verification(ref_id: str, verification: str) -> Record:
     with _lock:
         _ensure_loaded()
         return _update('references', ref_id, {'verification': verification})
-
-
-# tickets
-
-def create_ticket(owner_id: str, analysis_id: str, subject: str, body: str,
-                  clause_id: Optional[str] = None) -> Record:
-    """Open a ticket on one of the owner's analyses, with its first message."""
-    subject = _require_text(subject, 'subject')
-    body = _require_text(body, 'body')
-    with _lock:
-        _ensure_loaded()
-        _require('users', owner_id)
-        analysis = _require('analyses', analysis_id)
-        if analysis['owner_id'] != owner_id:
-            raise ValueError(f"Analysis {analysis_id} does not belong to {owner_id}")
-        if clause_id is not None and not any(c['id'] == clause_id for c in analysis['clauses']):
-            raise LookupError(f"Clause {clause_id} not found in analysis {analysis_id}")
-        created_at = _now()
-        record = {
-            'id': _next_id('tickets'),
-            'owner_id': owner_id,
-            'assignee_id': None,
-            'analysis_id': analysis_id,
-            'clause_id': clause_id,
-            'subject': subject,
-            'status': 'open',
-            'messages': [_new_message(1, owner_id, body, created_at)],
-            'created_at': created_at,
-        }
-        return _append('tickets', record)
-
-
-def add_ticket_message(ticket_id: str, author_id: str, body: str) -> Record:
-    """Append a message to a ticket. Returns the updated ticket."""
-    body = _require_text(body, 'body')
-    with _lock:
-        _ensure_loaded()
-        ticket = _require('tickets', ticket_id)
-        _require('users', author_id)
-        messages = copy.deepcopy(ticket['messages'])
-        messages.append(_new_message(len(messages) + 1, author_id, body, _now()))
-        return _update('tickets', ticket_id, {'messages': messages})
-
-
-def update_ticket(ticket_id: str, status: Optional[str] = None,
-                  assignee_id: Optional[str] = None) -> Record:
-    """Change status and/or assign to an admin. None leaves a field unchanged."""
-    changes: Record = {}
-    if status is not None:
-        changes['status'] = _require_choice(status, TICKET_STATUSES, 'status')
-    with _lock:
-        _ensure_loaded()
-        _require('tickets', ticket_id)
-        if assignee_id is not None:
-            if _require('users', assignee_id)['role'] != 'admin':
-                raise ValueError(f"Assignee {assignee_id} is not an admin")
-            changes['assignee_id'] = assignee_id
-        return _update('tickets', ticket_id, changes)
-
-
-def get_ticket(ticket_id: str) -> Optional[Record]:
-    with _lock:
-        _ensure_loaded()
-        return copy.deepcopy(_find('tickets', ticket_id))
-
-
-def list_tickets(owner_id: Optional[str] = None, assignee_id: Optional[str] = None,
-                 status: Optional[str] = None) -> List[Record]:
-    """Tickets, newest first, optionally filtered by owner, assignee and/or status."""
-    if status is not None:
-        _require_choice(status, TICKET_STATUSES, 'status')
-    with _lock:
-        _ensure_loaded()
-        matches = [t for t in _store['tickets']
-                   if (owner_id is None or t['owner_id'] == owner_id)
-                   and (assignee_id is None or t['assignee_id'] == assignee_id)
-                   and (status is None or t['status'] == status)]
-        return _newest_first(matches)
-
-
-def _new_message(number: int, author_id: str, body: str, created_at: str) -> Record:
-    return {'id': f'msg_{number}', 'author_id': author_id, 'body': body, 'created_at': created_at}
