@@ -173,6 +173,13 @@ def current_user():
         return jsonify({'error': 'Not signed in'}), 401
     return jsonify({'user': public_user(user)})
 
+
+@app.route('/api/auth/logout', methods=['POST'])
+def logout():
+    """End the session. POST (not GET) so other sites cannot sign users out via a link."""
+    session.clear()
+    return jsonify({'message': 'Signed out'})
+
 # Configuration
 OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 FIRECRAWL_API_KEY = os.getenv('FIRECRAWL_API_KEY')
