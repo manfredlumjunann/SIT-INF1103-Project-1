@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass, asdict
 from datetime import datetime, timedelta
+import functools
 import secrets
 
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, g
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 from dotenv import load_dotenv
@@ -62,32 +63,34 @@ app.config.update(
 
 VALID_RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
 
-# Until login is implemented, every analysis belongs to this single guest account.
-GUEST_EMAIL = 'guest@contract-analyzer.local'
 
-
-def init_data_layer() -> str:
-    """Load all saved records, create the guest user if needed, and mark analyses that
-    were interrupted by a restart as failed. Returns the guest user's id."""
+def init_data_layer() -> None:
+    """Load all saved records and mark analyses that were interrupted by a restart as failed."""
     counts = data_manager.init_storage()
     print(f"💾 Loaded saved records: {counts}")
-
-    guest = data_manager.find_user_by_email(GUEST_EMAIL)
-    if guest is None:
-        guest = data_manager.create_user(GUEST_EMAIL, '!no-login', 'Guest')
 
     # Single worker process: anything still 'processing' at startup can never finish
     for stale in data_manager.list_analyses(status='processing'):
         data_manager.fail_analysis(stale['id'])
-    return guest['id']
 
 
-GUEST_USER_ID = init_data_layer()
+init_data_layer()
+
+
+def login_required(view):
+    @functools.wraps(view)
+    def wrapper(*args, **kwargs):
+        user = get_session_user()
+        if user is None:
+            return jsonify({'error': 'Please sign in to continue.'}), 401
+        g.user_id = user['id']
+        return view(*args, **kwargs)
+    return wrapper
 
 
 def get_current_user_id() -> str:
-    """Id of the user making the request. Temporary: always the guest until login exists."""
-    return GUEST_USER_ID
+    """Id of the signed-in user. Only valid inside routes decorated with @login_required."""
+    return g.user_id
 
 
 # Authentication
@@ -136,7 +139,7 @@ def register():
         return jsonify({'error': 'Please enter a valid email address.'}), 400
     if len(password) < MIN_PASSWORD_LENGTH:
         return jsonify({'error': f'Password must be at least {MIN_PASSWORD_LENGTH} characters.'}), 400
-    if email == GUEST_EMAIL or data_manager.find_user_by_email(email):
+    if data_manager.find_user_by_email(email):
         return jsonify({'error': 'An account with this email already exists. Please sign in instead.'}), 409
 
     try:
@@ -158,7 +161,7 @@ def login():
         return jsonify({'error': 'Please enter your email and password.'}), 400
 
     user = data_manager.find_user_by_email(email)
-    if user is None or email == GUEST_EMAIL or not check_password_hash(user['password_hash'], password):
+    if user is None or not check_password_hash(user['password_hash'], password):
         return jsonify({'error': LOGIN_FAILED_MESSAGE}), 401
 
     start_session(user)
@@ -394,6 +397,7 @@ Return JSON array with enhanced workaround fields."""
 
 
 @app.route('/api/analyze', methods=['POST'])
+@login_required
 def analyze_contract():
     """Main analysis endpoint."""
     try:
@@ -543,6 +547,7 @@ def get_owned_analysis(analysis_id: str) -> Optional[Dict]:
 
 
 @app.route('/api/analyses', methods=['GET'])
+@login_required
 def list_saved_analyses():
     """History list, newest first. Optional filters: ?status=done|failed|processing&risk=high|medium|low"""
     try:
@@ -557,6 +562,7 @@ def list_saved_analyses():
 
 
 @app.route('/api/analyses/<analysis_id>', methods=['GET'])
+@login_required
 def get_saved_analysis(analysis_id):
     """Reopen a saved analysis without calling the AI."""
     analysis = get_owned_analysis(analysis_id)
