@@ -1,6 +1,7 @@
 // Contract Clause Analyzer - Login / Registration Page
 const MIN_PASSWORD_LENGTH = 8;
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Must match USERNAME_PATTERN in data-layer/data_manager.py (checked case-insensitively)
+const USERNAME_PATTERN = /^[a-z0-9._-]{3,30}$/i;
 
 let mode = 'signin';   // 'signin' or 'register'
 
@@ -39,17 +40,17 @@ function fieldValue(id) {
 
 // Returns {message, fieldId} for the first problem found, or null if the form is valid.
 function validateForm() {
-    const email = fieldValue('email');
+    const username = fieldValue('username');
     const password = passwordInput.value;
 
-    if (mode === 'register' && !fieldValue('name')) {
-        return { message: 'Please enter your full name.', fieldId: 'name' };
+    if (!username) {
+        return { message: 'Please enter your username.', fieldId: 'username' };
     }
-    if (!email) {
-        return { message: 'Please enter your email address.', fieldId: 'email' };
-    }
-    if (!EMAIL_PATTERN.test(email)) {
-        return { message: 'Please enter a valid email address, e.g. name@company.com.', fieldId: 'email' };
+    if (mode === 'register' && !USERNAME_PATTERN.test(username)) {
+        return {
+            message: "Username must be 3-30 characters using letters, numbers, '.', '_' or '-'.",
+            fieldId: 'username'
+        };
     }
     if (!password) {
         return { message: 'Please enter your password.', fieldId: 'password' };
@@ -76,8 +77,7 @@ async function handleSubmit(event) {
     }
 
     const registering = mode === 'register';
-    const payload = { email: fieldValue('email'), password: passwordInput.value };
-    if (registering) payload.name = fieldValue('name');
+    const payload = { username: fieldValue('username'), password: passwordInput.value };
 
     submitBtn.disabled = true;
     submitBtn.textContent = registering ? 'Creating account...' : 'Signing in...';
@@ -91,7 +91,7 @@ async function handleSubmit(event) {
             goToMainPage();
             return;
         }
-        showError(await describeAuthError(response), registering && response.status === 409 ? 'email' : null);
+        showError(await describeAuthError(response), registering && response.status === 409 ? 'username' : null);
         if (response.status === 401) passwordInput.value = '';
     } catch (error) {
         console.error('Auth request failed:', error);

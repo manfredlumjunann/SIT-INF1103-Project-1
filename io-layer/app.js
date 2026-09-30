@@ -689,7 +689,7 @@ async function initPage() {
 }
 
 function showSignedInUser(user) {
-    document.getElementById('user-name').textContent = user && user.name ? `Signed in as ${user.name}` : '';
+    document.getElementById('user-name').textContent = user && user.username ? `Signed in as ${user.username}` : '';
 }
 
 function goToLoginPage() {
