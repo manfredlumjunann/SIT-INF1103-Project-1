@@ -24,6 +24,8 @@
     --low: #34d399;
     --low-soft: rgba(52, 211, 153, 0.14);
     --danger-soft: rgba(248, 113, 113, 0.1);
+    --danger: #b94b47;
+    --danger-hover: #c9554f;
     --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
 }
 
@@ -49,6 +51,8 @@
     --low: #047857;
     --low-soft: #d1fae5;
     --danger-soft: #fef2f2;
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
     --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
 }
 
@@ -451,6 +455,51 @@ body.auth-pending .app {
 .history-item:hover,
 .history-item.active {
     background: var(--surface-raised);
+}
+
+/* Each saved analysis: the open button plus a delete ✕ that appears on hover or keyboard focus */
+.history-entry {
+    position: relative;
+}
+
+.history-entry .history-item {
+    padding-right: 2.25rem;
+}
+
+.history-entry:hover .history-item {
+    background: var(--surface-raised);
+}
+
+.history-delete {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    width: 28px;
+    height: 28px;
+    transform: translateY(-50%);
+    opacity: 0;
+}
+
+.history-delete .icon {
+    width: 15px;
+    height: 15px;
+}
+
+.history-entry:hover .history-delete,
+.history-entry:focus-within .history-delete {
+    opacity: 1;
+}
+
+.history-delete:hover {
+    background: var(--high-soft);
+    color: var(--high);
+}
+
+/* Touch screens have no hover, so keep the ✕ visible */
+@media (hover: none) {
+    .history-delete {
+        opacity: 1;
+    }
 }
 
 .history-title {
@@ -1033,6 +1082,88 @@ body.auth-pending .app {
 
 .error-card .result-actions {
     margin-top: 0.9rem;
+}
+
+/* ---------- Confirmation dialog ---------- */
+
+.modal {
+    width: min(440px, calc(100% - 2rem));
+    margin: auto;
+    padding: 1.4rem 1.5rem 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow);
+}
+
+.modal::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.modal-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.modal-text {
+    margin-top: 0.35rem;
+    color: var(--text-muted);
+}
+
+.modal-file {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.modal .field-error {
+    margin-top: 0.85rem;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1.4rem;
+}
+
+.btn-secondary,
+.btn-danger {
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 9px;
+    font-weight: 600;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.btn-secondary {
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--border);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+}
+
+.btn-danger:focus-visible {
+    outline: 2px solid var(--danger);
+    outline-offset: 3px;
+}
+
+.btn-secondary:disabled,
+.btn-danger:disabled {
+    opacity: 0.6;
 }
 
 /* ---------- Narrow screens: sidebar slides in ---------- */

@@ -329,6 +329,16 @@ def fail_analysis(analysis_id: str) -> Record:
         return _update('analyses', analysis_id, {'status': 'failed'})
 
 
+def delete_analysis(analysis_id: str) -> Record:
+    """Permanently remove an analysis. Returns the deleted record.
+    Shared legal references are kept because other analyses may cite them."""
+    with _lock:
+        _ensure_loaded()
+        analysis = _require('analyses', analysis_id)
+        _write_collection('analyses', [a for a in _store['analyses'] if a['id'] != analysis_id])
+        return copy.deepcopy(analysis)
+
+
 def get_analysis(analysis_id: str) -> Optional[Record]:
     with _lock:
         _ensure_loaded()
