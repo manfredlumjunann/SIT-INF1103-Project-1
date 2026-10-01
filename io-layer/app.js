@@ -1,8 +1,8 @@
-// Contract Clause Analyzer - Frontend Application
-let selectedFile = null;
-let analysisResult = null;
-// The most recent request, so "Try Again" can repeat whatever failed
-let lastRequest = null;
+// Contract Clause Analyzer - main page (chat-style UI)
+// All text from the server (AI output, web-search results, filenames) is untrusted and is only
+// ever inserted with textContent via createElement(), never parsed as HTML.
+
+// ---------- Settings ----------
 
 // Must match what the backend can parse and nginx/Flask upload limits
 const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
@@ -10,55 +10,96 @@ const MAX_FILE_BYTES = 50 * 1024 * 1024;
 // Slightly longer than nginx's 600s proxy timeout so the server's 504 arrives first
 const REQUEST_TIMEOUT_MS = 620 * 1000;
 const RISK_LEVELS = ['high', 'medium', 'low'];
+const STATUS_LABELS = { done: 'Done', failed: 'Failed', processing: 'In progress' };
+const DEFAULT_HINT = 'Attach a contract (PDF, Word or TXT, up to 50 MB), then press ↑ to analyse.';
+const READY_HINT = 'Ready. Add context if you like, then enter ↑ or Enter to analyse.';
+// Shown one after another while waiting, so long analyses still feel alive
+const PROGRESS_STEPS = [
+    'Reading the contract...',
+    'Checking each clause with AI...',
+    'Looking up legal references...',
+    'Writing suggested workarounds...',
+    'Still working. Long contracts can take several minutes...'
+];
 
-// DOM Elements
-const dropZone = document.getElementById('drop-zone');
+// ---------- State ----------
+
+let selectedFile = null;
+let analysisResult = null;
+let lastAction = null;          // repeats the last failed request when "Try again" is pressed
+let activeRequestId = 0;        // responses from older requests are ignored
+
+// ---------- DOM ----------
+
+const app = document.getElementById('app');
+const thread = document.getElementById('thread');
+const composer = document.getElementById('composer');
+const contextInput = document.getElementById('context-text');
 const fileInput = document.getElementById('file-input');
+const attachBtn = document.getElementById('attach-btn');
 const fileInfo = document.getElementById('file-info');
-const analyzeBtn = document.getElementById('analyze-btn');
-const loadingSection = document.getElementById('loading-section');
-const outputSection = document.getElementById('output-section');
-const errorSection = document.getElementById('error-section');
-const progressFill = document.getElementById('progress-fill');
-const loadingStatus = document.getElementById('loading-status');
 const fileError = document.getElementById('file-error');
-const resultNotice = document.getElementById('result-notice');
-const resultMeta = document.getElementById('result-meta');
+const composerHint = document.getElementById('composer-hint');
+const analyzeBtn = document.getElementById('analyze-btn');
 const historyFilter = document.getElementById('history-filter');
 const historyList = document.getElementById('history-list');
 const historyMessage = document.getElementById('history-message');
 
-// Drag & Drop Handlers
-dropZone.addEventListener('dragover', (e) => {
-    e.preventDefault();
-    dropZone.classList.add('drag-over');
-});
+// ---------- Event wiring ----------
 
-dropZone.addEventListener('dragleave', () => {
-    dropZone.classList.remove('drag-over');
+attachBtn.addEventListener('click', () => fileInput.click());
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) handleFileSelect(fileInput.files[0]);
 });
-
-dropZone.addEventListener('drop', (e) => {
-    e.preventDefault();
-    dropZone.classList.remove('drag-over');
-    const files = e.dataTransfer.files;
-    if (files.length > 0) {
-        handleFileSelect(files[0]);
+document.getElementById('remove-file').addEventListener('click', removeFile);
+composer.addEventListener('submit', (event) => {
+    event.preventDefault();
+    runAnalysis();
+});
+contextInput.addEventListener('keydown', (event) => {
+    // Enter sends (like chat apps); Shift+Enter adds a new line
+    if (event.key === 'Enter' && !event.shiftKey && !event.isComposing) {
+        event.preventDefault();
+        if (!analyzeBtn.disabled) runAnalysis();
     }
 });
-
-// Single handler for the whole drop zone, including the Browse button inside it.
-// Clicks re-dispatched from the hidden input itself are ignored to avoid reopening the picker.
-dropZone.addEventListener('click', (e) => {
-    if (e.target === fileInput) return;
-    fileInput.click();
+contextInput.addEventListener('input', autoResizeContext);
+document.getElementById('new-analysis-btn').addEventListener('click', startNewAnalysis);
+historyFilter.addEventListener('change', loadHistory);
+document.getElementById('sidebar-open').addEventListener('click', () => setSidebarOpen(true));
+document.getElementById('sidebar-close').addEventListener('click', () => setSidebarOpen(false));
+document.getElementById('sidebar-backdrop').addEventListener('click', () => setSidebarOpen(false));
+document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setSidebarOpen(false);
 });
+document.getElementById('logout-btn').addEventListener('click', logout);
+initThemeToggle('theme-toggle');
+setUpDragAndDrop();
 
-fileInput.addEventListener('change', (e) => {
-    if (e.target.files.length > 0) {
-        handleFileSelect(e.target.files[0]);
-    }
-});
+// ---------- File selection ----------
+
+function setUpDragAndDrop() {
+    const dropArea = document.querySelector('.main');
+    let dragDepth = 0;   // dragenter/leave fire for every child element; count to avoid flicker
+
+    dropArea.addEventListener('dragenter', (event) => {
+        event.preventDefault();
+        dragDepth++;
+        composer.classList.add('drag-over');
+    });
+    dropArea.addEventListener('dragover', (event) => event.preventDefault());
+    dropArea.addEventListener('dragleave', () => {
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) composer.classList.remove('drag-over');
+    });
+    dropArea.addEventListener('drop', (event) => {
+        event.preventDefault();
+        dragDepth = 0;
+        composer.classList.remove('drag-over');
+        const files = event.dataTransfer.files;
+        if (files.length > 0) handleFileSelect(files[0]);
+    });
+}
 
 function handleFileSelect(file) {
     clearFileError();
@@ -70,10 +111,12 @@ function handleFileSelect(file) {
     }
 
     selectedFile = file;
-    document.querySelector('.file-name').textContent = file.name;
-    fileInfo.style.display = 'flex';
-    dropZone.style.display = 'none';
+    document.getElementById('file-name').textContent = file.name;
+    fileInfo.hidden = false;
+    attachBtn.hidden = true;
+    composerHint.textContent = READY_HINT;
     analyzeBtn.disabled = false;
+    contextInput.focus();
 }
 
 // Returns a user-facing problem description, or null if the file is acceptable.
@@ -82,7 +125,7 @@ function validateFile(file) {
     const fileExt = dotIndex >= 0 ? file.name.slice(dotIndex).toLowerCase() : '';
 
     if (!ALLOWED_EXTENSIONS.includes(fileExt)) {
-        return `"${file.name}" is not a supported file type. Please upload a PDF, DOCX or TXT file.`;
+        return `"${file.name}" is not a supported file type. Please upload a PDF, Word (.docx) or TXT file.`;
     }
     if (file.size === 0) {
         return `"${file.name}" is empty. Please choose a file that contains the contract text.`;
@@ -94,109 +137,150 @@ function validateFile(file) {
     return null;
 }
 
-function showFileError(message) {
-    fileError.textContent = message;
-    fileError.style.display = 'block';
-}
-
-function clearFileError() {
-    fileError.textContent = '';
-    fileError.style.display = 'none';
-}
-
 function removeFile() {
     selectedFile = null;
     fileInput.value = '';
-    fileInfo.style.display = 'none';
-    dropZone.style.display = 'block';
+    fileInfo.hidden = true;
+    attachBtn.hidden = false;
+    composerHint.textContent = DEFAULT_HINT;
     analyzeBtn.disabled = true;
     clearFileError();
 }
 
-// Analysis Handlers
-analyzeBtn.addEventListener('click', runAnalysis);
-historyFilter.addEventListener('change', loadHistory);
-
-// Upload the selected file and analyze it.
-function runAnalysis() {
-    if (!selectedFile) return;
-    const file = selectedFile;
-    const contextText = document.getElementById('context-text').value.trim();
-    performAnalysis(() => requestAnalysis(file, contextText));
+function showFileError(message) {
+    fileError.textContent = message;
+    fileError.hidden = false;
 }
 
-// Shared loading/progress/error handling for any request that runs the AI pipeline.
-async function performAnalysis(makeRequest) {
-    lastRequest = makeRequest;
+function clearFileError() {
+    fileError.textContent = '';
+    fileError.hidden = true;
+}
 
-    // Show loading state
-    loadingSection.style.display = 'block';
-    outputSection.style.display = 'none';
-    errorSection.style.display = 'none';
-    analyzeBtn.disabled = true;
-    progressFill.style.width = '0%';
+function autoResizeContext() {
+    contextInput.style.height = 'auto';
+    contextInput.style.height = `${contextInput.scrollHeight}px`;
+}
 
-    // Simulate progress updates
-    let progress = 0;
-    const progressInterval = setInterval(() => {
-        progress += Math.random() * 15;
-        if (progress > 90) progress = 90;
-        progressFill.style.width = progress + '%';
+// ---------- Running and opening analyses ----------
 
-        if (progress < 30) loadingStatus.textContent = 'Extracting text from document...';
-        else if (progress < 60) loadingStatus.textContent = 'Analyzing clauses with AI...';
-        else if (progress < 80) loadingStatus.textContent = 'Searching case law references...';
-        else loadingStatus.textContent = 'Compiling final report...';
-    }, 500);
+// Upload the attached file and analyse it. The file stays attached so a follow-up
+// question can be asked about the same contract.
+function runAnalysis() {
+    if (!selectedFile) {
+        showFileError('Attach a contract first.');
+        return;
+    }
+    const file = selectedFile;
+    const contextText = contextInput.value.trim();
+    contextInput.value = '';
+    autoResizeContext();
+    performAnalysis(() => requestAnalysis(file, contextText), { filename: file.name, context: contextText });
+}
 
+// Shared loading/error handling for any request that runs the AI pipeline.
+async function performAnalysis(makeRequest, userTurn) {
+    const requestId = ++activeRequestId;
+    lastAction = () => performAnalysis(makeRequest, userTurn);
+    clearFileError();
+    setActiveHistoryItem(null);
+    showThread(userTurn, renderLoading());
+    setBusy(true);
+
+    const stopProgress = startProgressMessages();
     let result;
     try {
         result = await makeRequest();
-        progressFill.style.width = '100%';
     } catch (error) {
         console.error('Analysis request failed:', error);
-        showError(toDisplayError(error));
+        if (requestId === activeRequestId) showThread(userTurn, renderError(toDisplayError(error)));
         return;
     } finally {
-        clearInterval(progressInterval);
-        loadingSection.style.display = 'none';
-        analyzeBtn.disabled = !selectedFile;
-        loadHistory();
+        stopProgress();
+        if (requestId === activeRequestId) setBusy(false);
+        loadHistory();   // a finished, failed or timed-out analysis may now be in the list
     }
 
-    showResult(result);
+    if (requestId === activeRequestId) showResult(result);
 }
 
-// Opens a saved analysis from history. No AI call, so no progress animation.
-async function openSavedAnalysis(analysisId) {
-    lastRequest = () => fetchAnalysisJson(`/api/analyses/${encodeURIComponent(analysisId)}`);
-    errorSection.style.display = 'none';
+// Opens a saved analysis from the sidebar. No AI call, so it is quick.
+// Any attached file is cleared: it belongs to a different contract than the one being opened.
+async function openSavedAnalysis(entry) {
+    const requestId = ++activeRequestId;
+    lastAction = () => openSavedAnalysis(entry);
+    removeFile();
+    setBusy(false);
+    setSidebarOpen(false);
+    setActiveHistoryItem(entry.id);
+    showThread({ filename: entry.filename, context: entry.context }, renderLoading('Opening saved analysis...'));
+
     try {
-        showResult(await lastRequest());
-        outputSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        const result = await fetchAnalysisJson(`/api/analyses/${encodeURIComponent(entry.id)}`);
+        if (requestId === activeRequestId) showResult(result);
     } catch (error) {
         console.error('Opening saved analysis failed:', error);
-        outputSection.style.display = 'none';
-        showError(toDisplayError(error));
+        if (requestId === activeRequestId) {
+            showThread({ filename: entry.filename, context: entry.context }, renderError(toDisplayError(error)));
+        }
     }
 }
 
 function showResult(result) {
     analysisResult = result;
+    const userTurn = { filename: result.filename, context: result.context };
     try {
-        displayResults(result);
+        showThread(userTurn, renderResult(result));
+        setActiveHistoryItem(result.id);
     } catch (error) {
         console.error('Rendering results failed:', error, result);
-        outputSection.style.display = 'none';
-        showError({
-            title: 'Could Not Display Results',
+        showThread(userTurn, renderError({
+            title: 'Could not display results',
             message: 'The analysis finished, but its results could not be displayed.',
             hint: 'Try again. If it keeps happening, report it to the team with the time it occurred.'
-        });
+        }));
     }
 }
 
-// Sends the contract to the backend and returns the parsed result.
+function startNewAnalysis() {
+    activeRequestId++;   // a still-running request will no longer replace the screen
+    analysisResult = null;
+    lastAction = null;
+    thread.replaceChildren();
+    app.classList.remove('has-thread');
+    setBusy(false);
+    removeFile();
+    contextInput.value = '';
+    autoResizeContext();
+    setActiveHistoryItem(null);
+    setSidebarOpen(false);
+    contextInput.focus();
+}
+
+function retryLastAction() {
+    if (lastAction) lastAction();
+    else startNewAnalysis();
+}
+
+function setBusy(busy) {
+    analyzeBtn.disabled = busy || !selectedFile;
+    attachBtn.disabled = busy;
+    analyzeBtn.setAttribute('aria-label', busy ? 'Analysing...' : 'Analyse contract');
+}
+
+// Cycles through PROGRESS_STEPS on the loading message; returns a function that stops it.
+function startProgressMessages() {
+    let step = 0;
+    const intervalId = setInterval(() => {
+        step = Math.min(step + 1, PROGRESS_STEPS.length - 1);
+        const status = thread.querySelector('.thinking-text');
+        if (status) status.textContent = PROGRESS_STEPS[step];
+    }, 12000);
+    return () => clearInterval(intervalId);
+}
+
+// ---------- Requests ----------
+
 function requestAnalysis(file, contextText) {
     const formData = new FormData();
     formData.append('contract', file);
@@ -225,7 +309,7 @@ async function fetchJson(url, options = {}) {
             response = await fetch(url, { ...options, signal: controller.signal });
         } catch (error) {
             if (error.name === 'AbortError') throw timeoutError();
-            throw appError('Connection Problem',
+            throw appError('Connection problem',
                 'Could not reach the analysis server.',
                 'Check that the application is running and your internet connection is working, then try again.');
         }
@@ -265,37 +349,37 @@ function describeHttpError(status, serverMessage) {
     switch (status) {
         case 400:
             return {
-                title: 'Could Not Analyze This File',
+                title: 'Could not analyse this file',
                 message: serverMessage || 'The file could not be processed.',
-                hint: 'Check that the file is a readable PDF, DOCX or TXT. Scanned PDFs (images of pages) contain no text to analyze.'
+                hint: 'Check that the file is a readable PDF, Word or TXT file. Scanned PDFs (images of pages) contain no text to analyse.'
             };
         case 401:
             return {
-                title: 'Signed Out',
+                title: 'Signed out',
                 message: 'Your session has ended.',
-                hint: 'Taking you to the sign-in page...'
+                hint: 'Taking you to the login page...'
             };
         case 404:
             return {
-                title: 'Analysis Not Found',
+                title: 'Analysis not found',
                 message: serverMessage || 'This saved analysis no longer exists.',
-                hint: 'Refresh the page to reload your list of saved analyses.'
+                hint: 'Refresh the page to reload your saved analyses.'
             };
         case 413:
             return {
-                title: 'File Too Large',
+                title: 'File too large',
                 message: 'The contract exceeds the 50 MB upload limit.',
-                hint: 'Try a smaller file, or save the contract as a TXT or DOCX file.'
+                hint: 'Try a smaller file, or save the contract as a TXT or Word file.'
             };
         case 502:
             return {
-                title: 'Analysis Service Unavailable',
+                title: 'Analysis service unavailable',
                 message: 'The analysis server is not responding.',
                 hint: 'It may still be starting up. Wait a moment and try again.'
             };
         case 503:
             return {
-                title: 'AI Service Unavailable',
+                title: 'AI service unavailable',
                 message: serverMessage || 'The AI models are currently unavailable.',
                 hint: 'This is usually temporary. Try again in a few minutes.'
             };
@@ -303,7 +387,7 @@ function describeHttpError(status, serverMessage) {
             return timeoutDetails();
         default:
             return {
-                title: 'Server Error',
+                title: 'Something went wrong',
                 message: serverMessage || `The server returned an unexpected error (HTTP ${status}).`,
                 hint: 'Try again. If it keeps happening, report it to the team with the time it occurred.'
             };
@@ -312,9 +396,9 @@ function describeHttpError(status, serverMessage) {
 
 function timeoutDetails() {
     return {
-        title: 'Analysis Timed Out',
-        message: 'The analysis took longer than 10 minutes and was stopped.',
-        hint: 'Try again, or upload a shorter contract.'
+        title: 'This is taking longer than expected',
+        message: 'No result arrived within 10 minutes.',
+        hint: 'The analysis may still finish in the background. Check Analyses in the sidebar in a few minutes before trying again.'
     };
 }
 
@@ -324,7 +408,7 @@ function timeoutError() {
 }
 
 function invalidResponseError() {
-    return appError('Unexpected Response',
+    return appError('Unexpected response',
         'The server returned a response that could not be read.',
         'Try again. If it keeps happening, report it to the team with the time it occurred.');
 }
@@ -338,41 +422,102 @@ function appError(title, message, hint) {
 
 function toDisplayError(error) {
     return {
-        title: error.title || 'Analysis Failed',
-        message: error.message || 'Something went wrong while analyzing the contract.',
+        title: error.title || 'Analysis failed',
+        message: error.message || 'Something went wrong while analysing the contract.',
         hint: error.hint || 'Try again. If it keeps happening, report it to the team with the time it occurred.'
     };
 }
 
-function displayResults(result) {
-    const clausesContainer = document.getElementById('clauses-container');
-    clausesContainer.innerHTML = '';
-    hideNotice();
-    renderResultMeta(result);
+// ---------- Thread rendering ----------
 
-    // Update stats
+// Replaces the conversation with the user's message (if they typed one) and the assistant reply.
+// The contract itself is not repeated here: it stays shown in the input box.
+function showThread(userTurn, assistantContent) {
+    app.classList.add('has-thread');
+    const userMessage = renderUserMessage(userTurn);
+    thread.replaceChildren(...(userMessage ? [userMessage] : []), assistantContent);
+    document.getElementById('content').scrollTop = 0;
+}
+
+// The typed context/question as a chat bubble, or null when nothing was typed.
+function renderUserMessage({ context }) {
+    if (!context) return null;
+    const wrapper = createElement('div', 'message-user');
+    wrapper.appendChild(createElement('div', 'user-bubble', context));
+    return wrapper;
+}
+
+function renderAssistantShell() {
+    const message = createElement('div', 'message-assistant');
+    const label = createElement('div', 'assistant-label');
+    label.appendChild(brandMark());
+    label.appendChild(createElement('span', '', 'Clause Analyzer'));
+    message.appendChild(label);
+    return message;
+}
+
+function renderLoading(text = PROGRESS_STEPS[0]) {
+    const message = renderAssistantShell();
+    const thinking = createElement('div', 'thinking');
+    thinking.setAttribute('role', 'status');
+    thinking.appendChild(createElement('span', 'spinner'));
+    thinking.appendChild(createElement('span', 'thinking-text', text));
+    message.appendChild(thinking);
+    if (text === PROGRESS_STEPS[0]) {
+        message.appendChild(createElement('p', 'thinking-note',
+            'Analyses usually take a few minutes. You can open a saved analysis meanwhile; this one will appear in the sidebar when it finishes.'));
+    }
+    return message;
+}
+
+function renderError(details) {
+    const message = renderAssistantShell();
+    const card = createElement('div', 'error-card');
+    card.setAttribute('role', 'alert');
+    card.appendChild(createElement('h3', '', details.title));
+    card.appendChild(createElement('p', '', details.message));
+    if (details.hint) card.appendChild(createElement('p', 'error-hint', details.hint));
+
+    const actions = createElement('div', 'result-actions');
+    actions.appendChild(actionButton('Try again', retryLastAction));
+    actions.appendChild(actionButton('Start over', startNewAnalysis));
+    card.appendChild(actions);
+    message.appendChild(card);
+    return message;
+}
+
+function renderResult(result) {
+    const message = renderAssistantShell();
+    message.appendChild(renderResultMeta(result));
+
+    const clauses = result.clauses;
     const counts = { high: 0, medium: 0, low: 0, unrated: 0 };
-    result.clauses.forEach(clause => {
+    clauses.forEach(clause => {
         if (clause && typeof clause === 'object') counts[normaliseRisk(clause)]++;
     });
 
-    document.getElementById('high-count').textContent = counts.high;
-    document.getElementById('medium-count').textContent = counts.medium;
-    document.getElementById('low-count').textContent = counts.low;
-
-    if (result.clauses.length === 0) {
-        showNotice(result.message || 'No problematic clauses were detected in this contract.',
-            'info',
-            'If you expected results, try again: the AI occasionally returns a response that cannot be read.');
-        outputSection.style.display = 'block';
-        return;
+    if (clauses.length === 0) {
+        message.appendChild(renderNotice(result.message || 'No problematic clauses were detected in this contract.',
+            '', 'If you expected results, try again: the AI occasionally returns a response that cannot be read.'));
+        message.appendChild(renderResultActions(result));
+        return message;
     }
 
+    const summary = createElement('div', 'summary');
+    summary.appendChild(createElement('span', 'summary-text',
+        `Found ${clauses.length} clause${clauses.length === 1 ? '' : 's'} to review:`));
+    RISK_LEVELS.forEach(level => {
+        summary.appendChild(createElement('span', `pill ${level}`, `${counts[level]} ${level}`));
+    });
+    if (counts.unrated > 0) summary.appendChild(createElement('span', 'pill unrated', `${counts.unrated} unrated`));
+    message.appendChild(summary);
+
     // Render each clause; a malformed clause is skipped instead of breaking the whole report
+    const list = createElement('div', 'clause-list');
     let skipped = 0;
-    result.clauses.forEach((clause, index) => {
+    clauses.forEach((clause, index) => {
         try {
-            clausesContainer.appendChild(renderClause(clause, index));
+            list.appendChild(renderClause(clause, index));
         } catch (error) {
             skipped++;
             console.error(`Could not render clause ${index + 1}:`, error, clause);
@@ -386,105 +531,36 @@ function displayResults(result) {
     if (skipped > 0) {
         warnings.push(`${skipped} clause(s) could not be displayed because the AI returned incomplete data.`);
     }
-    if (warnings.length > 0) {
-        showNotice(warnings.join(' '), 'warning');
-    }
+    if (warnings.length > 0) message.appendChild(renderNotice(warnings.join(' '), 'warning'));
 
-    outputSection.style.display = 'block';
+    message.appendChild(list);
+    message.appendChild(renderResultActions(result));
+    return message;
 }
 
-// "nda.pdf · 29 Sep 2026, 16:45 · Context: ..." plus a tag when the result came from the cache.
+// "nda.pdf · 29 Sep 2026, 4:45 PM" plus a tag when the result came from the cache.
 function renderResultMeta(result) {
-    resultMeta.textContent = '';
-    if (!result.filename && !result.timestamp) {
-        resultMeta.style.display = 'none';
-        return;
-    }
-    const parts = [result.filename || 'Contract', formatDate(result.timestamp)];
-    parts.push(result.context ? `Context: ${result.context}` : 'No context given');
-    resultMeta.appendChild(document.createTextNode(parts.join(' · ')));
+    const meta = createElement('p', 'result-meta',
+        [result.filename || 'Contract', formatDateTime(result.timestamp)].join(' · '));
     if (result.cached) {
-        resultMeta.appendChild(createElement('span', 'saved-tag',
-            '♻️ Saved result: same contract and context, no new AI call'));
+        meta.appendChild(createElement('span', 'saved-tag', 'Saved result, no new AI call'));
     }
-    resultMeta.style.display = 'block';
+    return meta;
 }
 
-function formatDate(timestamp) {
-    const date = new Date(timestamp);
-    return Number.isNaN(date.getTime())
-        ? 'Unknown date'
-        : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
+function renderNotice(text, type, hint) {
+    const notice = createElement('div', `notice ${type || ''}`.trim(), text);
+    if (hint) notice.appendChild(createElement('span', 'notice-hint', hint));
+    return notice;
 }
 
-// ---------- History ----------
-
-const STATUS_LABELS = { done: 'Done', failed: 'Failed', processing: 'Processing' };
-
-async function loadHistory() {
-    const query = historyFilter.value ? `?${historyFilter.value}` : '';
-    let entries;
-    try {
-        const data = await fetchJson(`/api/analyses${query}`);
-        entries = Array.isArray(data && data.analyses) ? data.analyses : [];
-    } catch (error) {
-        console.error('Loading history failed:', error);
-        historyList.textContent = '';
-        showHistoryMessage('Could not load your saved analyses. Refresh the page to try again.');
-        return;
+function renderResultActions(result) {
+    const actions = createElement('div', 'result-actions');
+    if (result.clauses.length > 0) {
+        actions.appendChild(actionButton('Export as Markdown', () => exportReport(result, 'markdown')));
     }
-
-    historyList.textContent = '';
-    if (entries.length === 0) {
-        showHistoryMessage(historyFilter.value
-            ? 'No saved analyses match this filter.'
-            : 'No saved analyses yet. Analyze a contract and it will appear here.');
-        return;
-    }
-    historyMessage.style.display = 'none';
-    entries.forEach(entry => {
-        try {
-            historyList.appendChild(renderHistoryItem(entry));
-        } catch (error) {
-            console.error('Could not render history entry:', error, entry);
-        }
-    });
-}
-
-function showHistoryMessage(message) {
-    historyMessage.textContent = message;
-    historyMessage.style.display = 'block';
-}
-
-function renderHistoryItem(entry) {
-    const status = STATUS_LABELS[entry.status] ? entry.status : 'processing';
-    const counts = entry.counts || {};
-
-    const item = document.createElement('li');
-    const button = createElement('button', 'history-item');
-    button.type = 'button';
-    button.addEventListener('click', () => openSavedAnalysis(entry.id));
-
-    const top = createElement('div', 'history-row');
-    top.appendChild(createElement('span', 'history-file', `📄 ${entry.filename || 'Contract'}`));
-    top.appendChild(createElement('span', 'history-date', formatDate(entry.timestamp)));
-    top.appendChild(createElement('span', `history-status ${status}`, STATUS_LABELS[status]));
-    button.appendChild(top);
-
-    const bottom = createElement('div', 'history-row');
-    bottom.appendChild(createElement('span', 'history-context',
-        entry.context ? `"${entry.context}"` : 'No context given'));
-    if (status === 'done') {
-        const risks = createElement('span', 'history-counts');
-        risks.appendChild(createElement('span', 'count high', `🔴 ${counts.high || 0}`));
-        risks.appendChild(createElement('span', 'count medium', `🟡 ${counts.medium || 0}`));
-        risks.appendChild(createElement('span', 'count low', `🟢 ${counts.low || 0}`));
-        bottom.appendChild(risks);
-    }
-    button.appendChild(bottom);
-
-    item.appendChild(button);
-    return item;
+    actions.appendChild(actionButton('Export as JSON', () => exportReport(result, 'json')));
+    return actions;
 }
 
 // Maps an AI-supplied risk level to high/medium/low, or 'unrated' if missing or unrecognised.
@@ -498,34 +574,39 @@ function renderClause(clause, index) {
         throw new Error('Clause is not an object');
     }
     const risk = normaliseRisk(clause);
-    const riskLabel = risk === 'unrated' ? 'Unrated' : `${risk.toUpperCase()} Risk`;
-
-    // Built with textContent only: AI and web-search text is untrusted and must never be parsed as HTML.
-    const card = createElement('div', `clause-card ${risk}`);
+    const card = createElement('article', `clause-card ${risk}`);
 
     const header = createElement('div', 'clause-header');
-    header.appendChild(createElement('span', 'clause-type', `${index + 1}. ${clause.clause_type || 'Unnamed clause'}`));
-    header.appendChild(createElement('span', `risk-badge ${risk}`, riskLabel));
+    const titleBlock = createElement('div');
+    titleBlock.appendChild(createElement('span', 'clause-type', `${index + 1}. ${clause.clause_type || 'Unnamed clause'}`));
+    if (clause.line_number) titleBlock.appendChild(createElement('span', 'clause-location', clause.line_number));
+    header.appendChild(titleBlock);
+    header.appendChild(createElement('span', `pill ${risk}`, risk === 'unrated' ? 'Unrated' : `${risk} risk`));
     card.appendChild(header);
 
-    card.appendChild(createElement('div', 'clause-text', `"${clause.clause_text || 'Clause text not provided'}"`));
-
-    const workaround = createElement('div', 'workaround');
-    workaround.appendChild(createElement('h4', '', '💡 Recommended Workaround'));
-    workaround.appendChild(createElement('p', '',
+    if (clause.clause_text) card.appendChild(createElement('blockquote', 'clause-text', clause.clause_text));
+    if (clause.issue_description) card.appendChild(renderClauseSection('Why it matters', clause.issue_description));
+    card.appendChild(renderClauseSection('Suggested workaround',
         clause.workaround || 'No workaround was provided. Consider consulting legal counsel.'));
-    card.appendChild(workaround);
 
     const references = Array.isArray(clause.legal_references)
         ? clause.legal_references.filter(ref => ref && typeof ref === 'object')
         : [];
     if (references.length > 0) {
-        const section = createElement('div', 'references');
-        section.appendChild(createElement('h4', '', '📚 Legal References & Precedents'));
-        references.forEach(ref => section.appendChild(renderReference(ref)));
-        card.appendChild(section);
+        const details = createElement('details', 'references');
+        details.appendChild(createElement('summary', '',
+            `${references.length} legal reference${references.length === 1 ? '' : 's'}`));
+        references.forEach(ref => details.appendChild(renderReference(ref)));
+        card.appendChild(details);
     }
     return card;
+}
+
+function renderClauseSection(heading, text) {
+    const section = createElement('div', 'clause-section');
+    section.appendChild(createElement('h4', '', heading));
+    section.appendChild(createElement('p', '', text));
+    return section;
 }
 
 function renderReference(ref) {
@@ -542,11 +623,12 @@ function renderReference(ref) {
     } else {
         item.appendChild(createElement('span', 'reference-title', title));
     }
+    if (ref.domain) item.appendChild(createElement('span', 'reference-domain', ref.domain));
 
     const summary = String(ref.summary || '');
     if (summary) {
-        const shortened = summary.length > 200 ? `${summary.substring(0, 200)}...` : summary;
-        item.appendChild(createElement('div', 'reference-summary', shortened));
+        const shortened = summary.length > 240 ? `${summary.substring(0, 240)}...` : summary;
+        item.appendChild(createElement('p', 'reference-summary', shortened));
     }
     return item;
 }
@@ -568,108 +650,194 @@ function createElement(tag, className, text) {
     return element;
 }
 
-function showNotice(message, type, hint) {
-    resultNotice.className = `result-notice ${type}`;
-    resultNotice.textContent = message;
-    if (hint) {
-        const hintEl = document.createElement('span');
-        hintEl.className = 'notice-hint';
-        hintEl.textContent = hint;
-        resultNotice.appendChild(hintEl);
-    }
-    resultNotice.style.display = 'block';
+function actionButton(label, onClick) {
+    const button = createElement('button', 'btn-ghost', label);
+    button.type = 'button';
+    button.addEventListener('click', onClick);
+    return button;
 }
 
-function hideNotice() {
-    resultNotice.textContent = '';
-    resultNotice.style.display = 'none';
+// The logo, built with DOM methods so no HTML string is parsed
+function brandMark() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'brand-mark');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    const fill = document.createElementNS(ns, 'path');
+    fill.setAttribute('d', 'M6 3h8l4 4v14H6z');
+    fill.setAttribute('fill', 'currentColor');
+    fill.setAttribute('opacity', '0.25');
+    const outline = document.createElementNS(ns, 'path');
+    outline.setAttribute('d', 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h4');
+    outline.setAttribute('stroke', 'currentColor');
+    outline.setAttribute('stroke-width', '1.8');
+    outline.setAttribute('stroke-linejoin', 'round');
+    outline.setAttribute('stroke-linecap', 'round');
+    svg.append(fill, outline);
+    return svg;
 }
 
-function showError(details) {
-    document.getElementById('error-title').textContent = details.title;
-    document.getElementById('error-message').textContent = details.message;
-    document.getElementById('error-hint').textContent = details.hint || '';
-    errorSection.style.display = 'block';
+function formatDateTime(timestamp) {
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime())
+        ? 'Unknown date'
+        : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-// Repeats whatever request last failed: an upload, a re-run, or opening a saved analysis.
-function retryAnalysis() {
-    errorSection.style.display = 'none';
-    if (!lastRequest) {
-        resetForm();
+function formatShortDate(timestamp) {
+    const date = new Date(timestamp);
+    return Number.isNaN(date.getTime())
+        ? ''
+        : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+}
+
+// ---------- Sidebar: saved analyses ----------
+
+async function loadHistory() {
+    const filterAtRequest = historyFilter.value;
+    const query = filterAtRequest ? `?${filterAtRequest}` : '';
+    let entries;
+    try {
+        const data = await fetchJson(`/api/analyses${query}`);
+        entries = Array.isArray(data && data.analyses) ? data.analyses : [];
+    } catch (error) {
+        console.error('Loading history failed:', error);
+        historyList.replaceChildren();
+        showHistoryMessage('Could not load your saved analyses. Refresh the page to try again.');
         return;
     }
-    performAnalysis(lastRequest);
-}
+    // The filter changed while this request was running; a newer request will fill the list
+    if (filterAtRequest !== historyFilter.value) return;
 
-function resetForm() {
-    selectedFile = null;
-    analysisResult = null;
-    fileInput.value = '';
-    document.getElementById('context-text').value = '';
-    fileInfo.style.display = 'none';
-    dropZone.style.display = 'block';
-    outputSection.style.display = 'none';
-    errorSection.style.display = 'none';
-    analyzeBtn.disabled = true;
-    progressFill.style.width = '0%';
-    clearFileError();
-    hideNotice();
-    resultMeta.style.display = 'none';
-    lastRequest = null;
-}
-
-function exportReport(format) {
-    if (!analysisResult) return;
-    
-    let content, filename, mimeType;
-    
-    if (format === 'json') {
-        content = JSON.stringify(analysisResult, null, 2);
-        filename = 'contract-analysis.json';
-        mimeType = 'application/json';
-    } else {
-        content = generateMarkdown(analysisResult);
-        filename = 'contract-analysis.md';
-        mimeType = 'text/markdown';
+    historyList.replaceChildren();
+    if (entries.length === 0) {
+        showHistoryMessage(filterAtRequest
+            ? 'No saved analyses match this filter.'
+            : 'No analyses yet. Your analyses will appear here.');
+        return;
     }
-    
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+    historyMessage.hidden = true;
+    entries.forEach(entry => {
+        try {
+            historyList.appendChild(renderHistoryItem(entry));
+        } catch (error) {
+            console.error('Could not render history entry:', error, entry);
+        }
+    });
+    setActiveHistoryItem(analysisResult ? analysisResult.id : null);
+}
+
+function showHistoryMessage(message) {
+    historyMessage.textContent = message;
+    historyMessage.hidden = false;
+}
+
+function renderHistoryItem(entry) {
+    const status = STATUS_LABELS[entry.status] ? entry.status : 'processing';
+    const counts = entry.counts || {};
+
+    const item = document.createElement('li');
+    const button = createElement('button', 'history-item');
+    button.type = 'button';
+    button.dataset.id = entry.id;
+    button.title = entry.context ? `${entry.filename}\n${entry.context}` : entry.filename || '';
+    button.addEventListener('click', () => openSavedAnalysis(entry));
+
+    button.appendChild(createElement('span', 'history-title', entry.filename || 'Contract'));
+    const meta = createElement('span', 'history-meta');
+    meta.appendChild(createElement('span', '', formatShortDate(entry.timestamp)));
+    if (status === 'done') {
+        const dots = createElement('span', 'risk-dots');
+        RISK_LEVELS.forEach(level => {
+            if (counts[level] > 0) {
+                const dot = createElement('span', `risk-dot ${level}`, counts[level]);
+                dot.title = `${counts[level]} ${level} risk`;
+                dots.appendChild(dot);
+            }
+        });
+        if (!dots.childElementCount) dots.appendChild(createElement('span', '', 'No issues found'));
+        meta.appendChild(dots);
+    } else {
+        meta.appendChild(createElement('span', `status-tag ${status}`, STATUS_LABELS[status]));
+    }
+    button.appendChild(meta);
+
+    item.appendChild(button);
+    return item;
+}
+
+function setActiveHistoryItem(analysisId) {
+    historyList.querySelectorAll('.history-item').forEach(button => {
+        const active = analysisId !== null && button.dataset.id === analysisId;
+        button.classList.toggle('active', active);
+        if (active) button.setAttribute('aria-current', 'true');
+        else button.removeAttribute('aria-current');
+    });
+}
+
+function setSidebarOpen(open) {
+    app.classList.toggle('sidebar-open', open);
+}
+
+// ---------- Export ----------
+
+function exportReport(result, format) {
+    const baseName = exportBaseName(result.filename);
+    const content = format === 'json' ? JSON.stringify(result, null, 2) : generateMarkdown(result);
+    const filename = `${baseName}-analysis.${format === 'json' ? 'json' : 'md'}`;
+    const mimeType = format === 'json' ? 'application/json' : 'text/markdown';
+
+    const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
     URL.revokeObjectURL(url);
 }
 
+// "Supplier Agreement.pdf" -> "supplier-agreement"
+function exportBaseName(filename) {
+    const withoutExtension = String(filename || 'contract').replace(/\.[^.]+$/, '');
+    const slug = withoutExtension.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    return slug || 'contract';
+}
+
 function generateMarkdown(result) {
-    let md = `# Contract Clause Analysis Report\n\n`;
-    md += `**Generated:** ${new Date().toISOString()}\n\n`;
-    md += `**Total Flagged Clauses:** ${result.clauses.length}\n\n---\n\n`;
-    
+    const text = (value, fallback = 'Not provided') => String(value || fallback);
+    let md = `# Contract Clause Analysis: ${text(result.filename, 'Contract')}\n\n`;
+    md += `**Analysed:** ${formatDateTime(result.timestamp)}\n\n`;
+    if (result.context) md += `**Context:** ${result.context}\n\n`;
+    md += `**Flagged clauses:** ${result.clauses.length}\n\n---\n\n`;
+
     result.clauses.forEach((clause, i) => {
-        md += `## ${i + 1}. ${clause.clause_type} [${clause.risk_level} RISK]\n\n`;
-        md += `**Issue:** ${clause.issue_description}\n\n`;
-        md += `### Clause Text\n> ${clause.clause_text}\n\n`;
-        md += `### 💡 Recommended Workaround\n${clause.workaround}\n\n`;
-        
-        if (clause.legal_references && clause.legal_references.length > 0) {
-            md += `### 📚 Legal References\n`;
-            clause.legal_references.forEach(ref => {
-                md += `- **[${ref.title}](${ref.url})**\n`;
+        if (!clause || typeof clause !== 'object') return;
+        md += `## ${i + 1}. ${text(clause.clause_type, 'Unnamed clause')} [${normaliseRisk(clause).toUpperCase()}]\n\n`;
+        if (clause.line_number) md += `*${clause.line_number}*\n\n`;
+        md += `> ${text(clause.clause_text)}\n\n`;
+        md += `**Why it matters:** ${text(clause.issue_description)}\n\n`;
+        md += `**Suggested workaround:** ${text(clause.workaround)}\n\n`;
+
+        const references = Array.isArray(clause.legal_references) ? clause.legal_references : [];
+        if (references.length > 0) {
+            md += `**Legal references:**\n`;
+            references.forEach(ref => {
+                if (!ref) return;
+                const href = safeUrl(ref.url);
+                md += href ? `- [${text(ref.title, href)}](${href})\n` : `- ${text(ref.title)}\n`;
                 if (ref.summary) md += `  ${ref.summary}\n`;
             });
             md += '\n';
         }
         md += '---\n\n';
     });
-    
     return md;
 }
 
+// ---------- Sign-in state ----------
 
 // Only signed-in users may use the main page; everyone else goes to the login page.
 async function initPage() {
@@ -689,7 +857,10 @@ async function initPage() {
 }
 
 function showSignedInUser(user) {
-    document.getElementById('user-name').textContent = user && user.username ? `Signed in as ${user.username}` : '';
+    const username = user && user.username ? user.username : '';
+    document.getElementById('user-name').textContent = username;
+    document.getElementById('user-avatar').textContent = username ? username.charAt(0) : '?';
+    document.getElementById('greeting-text').textContent = username ? `What would you like to review?, ${username}` : 'Welcome back';
 }
 
 function goToLoginPage() {
@@ -706,15 +877,9 @@ async function logout() {
     } catch (error) {
         console.error('Sign out failed:', error);
         logoutBtn.disabled = false;
-        showError({
-            title: 'Could Not Sign Out',
-            message: 'The server could not be reached, so you are still signed in.',
-            hint: 'Check that the application is running and try again.'
-        });
+        showFileError('Could not sign out: the server could not be reached, so you are still signed in. Try again in a moment.');
     }
 }
-
-document.getElementById('logout-btn').addEventListener('click', logout);
 
 // The back button can restore this page from the browser's cache without re-running scripts,
 // so re-check the session when that happens (e.g. after signing out).
