@@ -112,6 +112,17 @@
         </main>
     </div>
 
+    <dialog id="delete-dialog" class="modal" aria-labelledby="delete-title" aria-describedby="delete-description">
+        <h2 id="delete-title" class="modal-title">Delete analysis?</h2>
+        <p id="delete-description" class="modal-text">Are you sure you want to delete this analysis?</p>
+        <p id="delete-filename" class="modal-file"></p>
+        <p id="delete-error" class="field-error" role="alert" hidden></p>
+        <div class="modal-actions">
+            <button type="button" id="delete-cancel" class="btn-secondary">Cancel</button>
+            <button type="button" id="delete-confirm" class="btn-danger">Delete</button>
+        </div>
+    </dialog>
+
     <script src="app.js"></script>
 </body>
 </html>

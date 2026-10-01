@@ -679,6 +679,22 @@ function brandMark() {
     return svg;
 }
 
+function closeIcon() {
+    const ns = 'http://www.w3.org/2000/svg';
+    const svg = document.createElementNS(ns, 'svg');
+    svg.setAttribute('class', 'icon');
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('aria-hidden', 'true');
+    const path = document.createElementNS(ns, 'path');
+    path.setAttribute('d', 'M6 6l12 12M18 6L6 18');
+    path.setAttribute('stroke', 'currentColor');
+    path.setAttribute('stroke-width', '2');
+    path.setAttribute('stroke-linecap', 'round');
+    svg.appendChild(path);
+    return svg;
+}
+
 function formatDateTime(timestamp) {
     const date = new Date(timestamp);
     return Number.isNaN(date.getTime())
@@ -763,9 +779,73 @@ function renderHistoryItem(entry) {
         meta.appendChild(createElement('span', `status-tag ${status}`, STATUS_LABELS[status]));
     }
     button.appendChild(meta);
-
+    item.className = 'history-entry';
     item.appendChild(button);
+
+    // An analysis that is still running cannot be deleted (the server refuses), so no ✕ for it
+    if (status !== 'processing') {
+        const deleteBtn = createElement('button', 'icon-btn history-delete');
+        deleteBtn.type = 'button';
+        deleteBtn.title = 'Delete';
+        deleteBtn.setAttribute('aria-label', `Delete ${entry.filename || 'analysis'}`);
+        deleteBtn.appendChild(closeIcon());
+        deleteBtn.addEventListener('click', () => openDeleteDialog(entry));
+        item.appendChild(deleteBtn);
+    }
     return item;
+}
+
+// ---------- Deleting a saved analysis ----------
+
+const deleteDialog = document.getElementById('delete-dialog');
+const deleteConfirmBtn = document.getElementById('delete-confirm');
+const deleteCancelBtn = document.getElementById('delete-cancel');
+const deleteError = document.getElementById('delete-error');
+let pendingDelete = null;   // the history entry the dialog is asking about
+
+deleteConfirmBtn.addEventListener('click', confirmDelete);
+deleteCancelBtn.addEventListener('click', () => deleteDialog.close());
+// Clicking the dimmed backdrop (outside the box) cancels, like Esc does
+deleteDialog.addEventListener('click', (event) => {
+    if (event.target === deleteDialog) deleteDialog.close();
+});
+deleteDialog.addEventListener('close', () => {
+    pendingDelete = null;
+});
+
+function openDeleteDialog(entry) {
+    pendingDelete = entry;
+    document.getElementById('delete-filename').textContent = entry.filename || 'Contract';
+    deleteError.hidden = true;
+    setDeleteBusy(false);
+    deleteDialog.showModal();
+    deleteCancelBtn.focus();   // the safe choice is focused by default
+}
+
+async function confirmDelete() {
+    if (!pendingDelete) return;
+    const entry = pendingDelete;
+    setDeleteBusy(true);
+    deleteError.hidden = true;
+    try {
+        await fetchJson(`/api/analyses/${encodeURIComponent(entry.id)}`, { method: 'DELETE' });
+    } catch (error) {
+        console.error('Deleting analysis failed:', error);
+        deleteError.textContent = toDisplayError(error).message;
+        deleteError.hidden = false;
+        setDeleteBusy(false);
+        return;
+    }
+    // Leave the deleted analysis if it is the one on screen
+    if (analysisResult && analysisResult.id === entry.id) startNewAnalysis();
+    deleteDialog.close();
+    loadHistory();
+}
+
+function setDeleteBusy(busy) {
+    deleteConfirmBtn.disabled = busy;
+    deleteCancelBtn.disabled = busy;
+    deleteConfirmBtn.textContent = busy ? 'Deleting...' : 'Delete';
 }
 
 function setActiveHistoryItem(analysisId) {

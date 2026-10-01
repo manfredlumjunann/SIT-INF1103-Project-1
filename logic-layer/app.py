@@ -581,6 +581,20 @@ def get_saved_analysis(analysis_id):
     return jsonify(analysis_response(analysis))
 
 
+@app.route('/api/analyses/<analysis_id>', methods=['DELETE'])
+@login_required
+def delete_saved_analysis(analysis_id):
+    """Permanently delete one of the current user's analyses."""
+    analysis = get_owned_analysis(analysis_id)
+    if analysis is None:
+        return jsonify({'error': 'Analysis not found'}), 404
+    if analysis['status'] == 'processing':
+        # The pipeline still needs this record to save its result
+        return jsonify({'error': 'This analysis is still in progress. Try again once it has finished.'}), 409
+    data_manager.delete_analysis(analysis_id)
+    return jsonify({'deleted': analysis_id})
+
+
 @app.route('/api/health', methods=['GET'])
 def health_check():
     """Health check endpoint with model availability test."""
