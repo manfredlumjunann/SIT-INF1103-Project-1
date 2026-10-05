@@ -6,6 +6,7 @@ import requests
 
 def send_msg(text, data):
     # Your credentials
+    newdata = int(data)
     token = "8976136444:AAFfIjAHnZwAL_MZoJLBd0wOCImfbmBCduE" #Token key
     don_id = "667740965"  # Make sure to replace this with your real numerical ID
     man_id = "1116849976" # Another user key
@@ -14,17 +15,23 @@ def send_msg(text, data):
     url_req = f"https://api.telegram.org/bot{token}/sendMessage"
     
     # Safely passing parameters ensures spaces and special characters are handled correctly
+
+    if newdata > 6:
+         payload = {
+                 "chat_id": don_id, #Send to particular ChatID
+                 "text": text + "clauses: " + str(data)
+             }
+    elif newdata > 8:
+        payload = {
+            "chat_id": man_id, #Send to particular ChatID
+            "text": text + "clauses: " + str(data)
+        }
+
     
-    payload = {
-        "chat_id": don_id, #Send to particular ChatID
-        "text": text + "clauses: " + str(data)
-    }
     
     # Make the request
     results = requests.get(url_req, params=payload)
     print(results.json())
-
-# Test the function
 
 
 
@@ -68,4 +75,4 @@ for clause in data["clauses"]:
 print(Clauses)
 
 if data["total_flagged"] > 5: #This one can send if threshold meets
-     send_msg("Hello Manfred\nClauses Found: ", data["total_flagged"])
+     send_msg("Clauses Found in recent scanned clause: ", data["total_flagged"])
