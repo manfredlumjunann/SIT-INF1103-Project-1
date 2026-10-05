@@ -1,0 +1,8 @@
+# Build context is the repo root for logic-layer; only send what the image needs.
+.git
+.env
+Project/
+production/
+io-layer/
+data-layer/data/
+**/__pycache__/

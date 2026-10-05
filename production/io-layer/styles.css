@@ -1,9 +1,74 @@
+<<<<<<< HEAD
 * {
+=======
+/* Contract Clause Analyzer - shared styles for the login and main pages.
+   Dark theme by default; [data-theme="light"] on <html> switches the colour tokens. */
+
+:root,
+[data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1f1f1d;
+    --sidebar: #181817;
+    --surface: #2a2a27;
+    --surface-raised: #33332f;
+    --border: #3b3b37;
+    --border-strong: #4d4d48;
+    --text: #ecebe6;
+    --text-muted: #a3a19a;
+    --text-faint: #75736d;
+    --accent: #7468f5;
+    --accent-hover: #8579ff;
+    --accent-soft: rgba(116, 104, 245, 0.16);
+    --accent-text: #b4abff;
+    --high: #f87171;
+    --high-soft: rgba(248, 113, 113, 0.14);
+    --medium: #fbbf24;
+    --medium-soft: rgba(251, 191, 36, 0.14);
+    --low: #34d399;
+    --low-soft: rgba(52, 211, 153, 0.14);
+    --danger-soft: rgba(248, 113, 113, 0.1);
+    --danger: #b94b47;
+    --danger-hover: #c9554f;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.35);
+}
+
+[data-theme="light"] {
+    color-scheme: light;
+    --bg: #ffffff;
+    --sidebar: #f7f7f5;
+    --surface: #ffffff;
+    --surface-raised: #f4f4f1;
+    --border: #e6e5e0;
+    --border-strong: #d4d3cc;
+    --text: #1d1d1b;
+    --text-muted: #6b6a64;
+    --text-faint: #9a9890;
+    --accent: #4f46e5;
+    --accent-hover: #4338ca;
+    --accent-soft: rgba(79, 70, 229, 0.08);
+    --accent-text: #4f46e5;
+    --high: #dc2626;
+    --high-soft: #fee2e2;
+    --medium: #b45309;
+    --medium-soft: #fef3c7;
+    --low: #047857;
+    --low-soft: #d1fae5;
+    --danger-soft: #fef2f2;
+    --danger: #dc2626;
+    --danger-hover: #b91c1c;
+    --shadow: 0 8px 30px rgba(0, 0, 0, 0.08);
+}
+
+*,
+*::before,
+*::after {
+>>>>>>> frontend-data
     margin: 0;
     padding: 0;
     box-sizing: border-box;
 }
 
+<<<<<<< HEAD
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
     background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -187,12 +252,817 @@ textarea:focus {
     border-radius: 50%;
     animation: spin 1s linear infinite;
     margin: 0 auto 1.5rem;
+=======
+html,
+body {
+    height: 100%;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+    background: var(--bg);
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+}
+
+button,
+input,
+textarea,
+select {
+    font: inherit;
+    color: inherit;
+}
+
+button {
+    cursor: pointer;
+}
+
+button:disabled {
+    cursor: not-allowed;
+}
+
+:focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+}
+
+[hidden] {
+    display: none !important;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+.icon {
+    width: 18px;
+    height: 18px;
+    flex-shrink: 0;
+}
+
+/* Main page stays hidden until the sign-in check finishes */
+body.auth-pending .app {
+    visibility: hidden;
+}
+
+/* ---------- Shared pieces ---------- */
+
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-weight: 700;
+    font-size: 1.05rem;
+    letter-spacing: -0.01em;
+    color: var(--text);
+}
+
+.brand-mark {
+    width: 22px;
+    height: 22px;
+    color: var(--accent);
+}
+
+.icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    transition: background 0.15s, color 0.15s;
+}
+
+.icon-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+.theme-icon-light {
+    display: none;
+}
+
+[data-theme="light"] .theme-icon-light {
+    display: block;
+}
+
+[data-theme="light"] .theme-icon-dark {
+    display: none;
+}
+
+.field-error {
+    color: var(--high);
+    background: var(--danger-soft);
+    border: 1px solid color-mix(in srgb, var(--high) 40%, transparent);
+    border-radius: 8px;
+    padding: 0.6rem 0.85rem;
+    font-size: 0.875rem;
+}
+
+.btn-primary {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: none;
+    border-radius: 8px;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 600;
+    transition: background 0.15s;
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.btn-primary:disabled {
+    opacity: 0.6;
+}
+
+.btn-ghost {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.8rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.btn-ghost:hover {
+    background: var(--surface-raised);
+    color: var(--text);
+    border-color: var(--border-strong);
+}
+
+/* ---------- Login / registration page ---------- */
+
+.auth-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1.25rem 2rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.auth-main {
+    display: flex;
+    justify-content: center;
+    padding: 4.5rem 1.25rem 3rem;
+}
+
+.auth-box {
+    width: 100%;
+    max-width: 400px;
+}
+
+.auth-box h1 {
+    font-size: 2.25rem;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+}
+
+.auth-subtitle {
+    color: var(--text-muted);
+    margin: 0.5rem 0 2rem;
+}
+
+.form-group {
+    margin-bottom: 1.15rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.4rem;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.text-input {
+    width: 100%;
+    padding: 0.7rem 0.9rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.text-input::placeholder {
+    color: var(--text-faint);
+}
+
+.text-input:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-soft);
+}
+
+.text-input[aria-invalid="true"] {
+    border-color: var(--high);
+}
+
+.password-field {
+    position: relative;
+}
+
+.password-field .text-input {
+    padding-right: 2.75rem;
+}
+
+.password-toggle {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    transform: translateY(-50%);
+}
+
+.password-toggle .eye-closed,
+.password-toggle[aria-pressed="true"] .eye-open {
+    display: none;
+}
+
+.password-toggle[aria-pressed="true"] .eye-closed {
+    display: block;
+}
+
+.field-hint {
+    font-size: 0.8rem;
+    color: var(--text-faint);
+    margin-top: 0.35rem;
+}
+
+#auth-error {
+    margin-bottom: 1rem;
+}
+
+.auth-switch {
+    margin-top: 1.5rem;
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.link-btn {
+    border: none;
+    background: none;
+    color: var(--accent-text);
+    font-weight: 500;
+    text-decoration: none;
+}
+
+.link-btn:hover {
+    text-decoration: underline;
+}
+
+/* ---------- Main app layout ---------- */
+
+.app {
+    display: flex;
+    height: 100vh;
+    height: 100dvh;
+}
+
+.sidebar {
+    display: flex;
+    flex-direction: column;
+    width: 270px;
+    flex-shrink: 0;
+    background: var(--sidebar);
+    border-right: 1px solid var(--border);
+}
+
+.sidebar-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 0.9rem 0.75rem 1.1rem;
+}
+
+.new-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin: 0.25rem 0.75rem 1rem;
+    padding: 0.55rem 0.65rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text);
+    font-weight: 500;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.new-btn:hover {
+    background: var(--surface-raised);
+}
+
+.new-btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+}
+
+.new-btn-icon .icon {
+    width: 14px;
+    height: 14px;
+}
+
+.sidebar-section {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+
+.sidebar-heading {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+    padding: 0 0.9rem 0.5rem 1.1rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+}
+
+.history-filter {
+    max-width: 130px;
+    padding: 0.2rem 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: none;
+    letter-spacing: 0;
+}
+
+.history-message {
+    padding: 0.5rem 1.1rem;
+    font-size: 0.85rem;
+    color: var(--text-faint);
+}
+
+.history-list {
+    list-style: none;
+    overflow-y: auto;
+    padding: 0 0.6rem 0.75rem;
+}
+
+.history-item {
+    display: block;
+    width: 100%;
+    padding: 0.5rem 0.6rem;
+    border: none;
+    border-radius: 8px;
+    background: transparent;
+    text-align: left;
+    transition: background 0.15s;
+}
+
+.history-item:hover,
+.history-item.active {
+    background: var(--surface-raised);
+}
+
+/* Each saved analysis: the open button plus a delete ✕ that appears on hover or keyboard focus */
+.history-entry {
+    position: relative;
+}
+
+.history-entry .history-item {
+    padding-right: 2.25rem;
+}
+
+.history-entry:hover .history-item {
+    background: var(--surface-raised);
+}
+
+.history-delete {
+    position: absolute;
+    top: 50%;
+    right: 0.35rem;
+    width: 28px;
+    height: 28px;
+    transform: translateY(-50%);
+    opacity: 0;
+}
+
+.history-delete .icon {
+    width: 15px;
+    height: 15px;
+}
+
+.history-entry:hover .history-delete,
+.history-entry:focus-within .history-delete {
+    opacity: 1;
+}
+
+.history-delete:hover {
+    background: var(--high-soft);
+    color: var(--high);
+}
+
+/* Touch screens have no hover, so keep the ✕ visible */
+@media (hover: none) {
+    .history-delete {
+        opacity: 1;
+    }
+}
+
+.history-title {
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    color: var(--text);
+}
+
+.history-meta {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    margin-top: 0.15rem;
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+.risk-dots {
+    display: inline-flex;
+    gap: 0.4rem;
+}
+
+.risk-dot::before {
+    content: '';
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    margin-right: 0.2rem;
+    border-radius: 50%;
+    vertical-align: middle;
+    background: currentColor;
+}
+
+.risk-dot.high { color: var(--high); }
+.risk-dot.medium { color: var(--medium); }
+.risk-dot.low { color: var(--low); }
+
+.status-tag {
+    padding: 0 0.4rem;
+    border-radius: 4px;
+    font-size: 0.7rem;
+    font-weight: 600;
+}
+
+.status-tag.failed {
+    background: var(--high-soft);
+    color: var(--high);
+}
+
+.status-tag.processing {
+    background: var(--medium-soft);
+    color: var(--medium);
+}
+
+.sidebar-footer {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.75rem 0.6rem 0.75rem 0.9rem;
+    border-top: 1px solid var(--border);
+}
+
+.user-chip {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    flex: 1;
+    min-width: 0;
+}
+
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    background: var(--surface-raised);
+    border: 1px solid var(--border-strong);
+    font-size: 0.85rem;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.user-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    font-weight: 500;
+}
+
+.sidebar-backdrop {
+    display: none;
+}
+
+/* ---------- Main column ---------- */
+
+.main {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+}
+
+.topbar {
+    display: none;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.6rem 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+}
+
+.welcome {
+    margin: auto 0 1.75rem;
+    padding: 0 1.25rem;
+    text-align: center;
+}
+
+.greeting {
+    font-family: Georgia, 'Times New Roman', serif;
+    font-weight: 400;
+    font-size: clamp(1.8rem, 4vw, 2.5rem);
+    letter-spacing: -0.01em;
+}
+
+.welcome-sub {
+    margin-top: 0.6rem;
+    color: var(--text-muted);
+}
+
+.thread {
+    width: 100%;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 1rem;
+}
+
+/* ---------- Composer (prompt box) ---------- */
+
+.composer-wrap {
+    width: 100%;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 0 1.25rem 1.25rem;
+}
+
+.app.has-thread .welcome {
+    display: none;
+}
+
+/* Empty state: greeting + composer centred together. With a thread: composer pinned to the bottom. */
+.app:not(.has-thread) .composer-wrap {
+    margin-bottom: auto;
+}
+
+.app.has-thread .composer-wrap {
+    position: sticky;
+    bottom: 0;
+    margin-top: auto;
+    padding-top: 1.25rem;
+    background: linear-gradient(to bottom, transparent, var(--bg) 1.25rem);
+}
+
+/* Keep the empty state compact, and the docked composer short */
+.app:not(.has-thread) .thread,
+.app.has-thread .composer-hint {
+    display: none;
+}
+
+.app.has-thread .composer textarea {
+    min-height: 52px;
+    padding-bottom: 0.75rem;
+}
+
+.composer {
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    background: var(--surface);
+    box-shadow: var(--shadow);
+    transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.composer:focus-within,
+.composer.drag-over {
+    border-color: var(--border-strong);
+}
+
+.composer.drag-over {
+    box-shadow: 0 0 0 3px var(--accent-soft), var(--shadow);
+}
+
+.composer textarea {
+    display: block;
+    width: 100%;
+    min-height: 64px;
+    max-height: 220px;
+    padding: 1rem 1.15rem 0.5rem;
+    border: none;
+    background: transparent;
+    resize: none;
+    line-height: 1.5;
+}
+
+.composer textarea:focus {
+    outline: none;
+}
+
+.composer textarea::placeholder {
+    color: var(--text-faint);
+}
+
+.composer-hint {
+    padding: 0 1.15rem 0.7rem;
+    font-size: 0.85rem;
+    color: var(--accent-text);
+}
+
+.composer-bar {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    padding: 0.7rem 0.75rem 0.75rem;
+    border-top: 1px solid var(--border);
+}
+
+.attach-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0.45rem 0.8rem;
+    border: 1px dashed var(--border-strong);
+    border-radius: 8px;
+    background: transparent;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    transition: background 0.15s, color 0.15s;
+}
+
+.attach-btn:hover {
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+.file-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    min-width: 0;
+    max-width: 60%;
+    padding: 0.35rem 0.4rem 0.35rem 0.65rem;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    background: var(--surface-raised);
+    font-size: 0.85rem;
+}
+
+.file-chip .file-name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.file-chip .icon-btn {
+    width: 24px;
+    height: 24px;
+}
+
+.send-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    margin-left: auto;
+    flex-shrink: 0;
+    border: none;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.send-btn:hover:not(:disabled) {
+    background: var(--accent-hover);
+}
+
+.send-btn:disabled {
+    background: var(--accent-soft);
+    color: var(--accent-text);
+}
+
+#file-error {
+    margin: 0.6rem 0 0;
+}
+
+.composer-note {
+    margin-top: 0.6rem;
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+/* ---------- Thread messages ---------- */
+
+.message-user {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 1.75rem;
+}
+
+.user-bubble {
+    max-width: 85%;
+    padding: 0.75rem 1rem;
+    border-radius: 16px;
+    background: var(--surface-raised);
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.message-assistant {
+    margin-bottom: 2rem;
+}
+
+.assistant-label {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    font-size: 0.9rem;
+}
+
+.assistant-label .brand-mark {
+    width: 20px;
+    height: 20px;
+}
+
+/* Loading */
+.thinking {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    color: var(--text-muted);
+}
+
+.spinner {
+    width: 18px;
+    height: 18px;
+    border: 2px solid var(--border-strong);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+>>>>>>> frontend-data
 }
 
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
 
+<<<<<<< HEAD
 .progress-bar {
     width: 100%;
     max-width: 400px;
@@ -323,12 +1193,175 @@ textarea:focus {
     color: #667eea;
     text-decoration: none;
     font-weight: 600;
+=======
+.thinking-note {
+    margin-top: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+}
+
+/* Result summary */
+.result-meta {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    overflow-wrap: anywhere;
+}
+
+.saved-tag {
+    display: inline-block;
+    margin-left: 0.5rem;
+    padding: 0.05rem 0.5rem;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.summary {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.5rem;
+    margin: 0.75rem 0 1.25rem;
+}
+
+.summary-text {
+    margin-right: 0.25rem;
+}
+
+.pill {
+    padding: 0.15rem 0.6rem;
+    border-radius: 999px;
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.pill.high { background: var(--high-soft); color: var(--high); }
+.pill.medium { background: var(--medium-soft); color: var(--medium); }
+.pill.low { background: var(--low-soft); color: var(--low); }
+.pill.unrated { background: var(--surface-raised); color: var(--text-muted); }
+
+.notice {
+    margin-bottom: 1.25rem;
+    padding: 0.75rem 1rem;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    font-size: 0.9rem;
+}
+
+.notice.warning {
+    border-color: color-mix(in srgb, var(--medium) 45%, transparent);
+    background: var(--medium-soft);
+}
+
+.notice-hint {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* Clause cards */
+.clause-list {
+    display: grid;
+    gap: 0.9rem;
+}
+
+.clause-card {
+    padding: 1rem 1.15rem;
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border-strong);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.clause-card.high { border-left-color: var(--high); }
+.clause-card.medium { border-left-color: var(--medium); }
+.clause-card.low { border-left-color: var(--low); }
+
+.clause-header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 0.75rem;
+}
+
+.clause-type {
+    font-weight: 600;
+}
+
+.clause-header .pill {
+    flex-shrink: 0;
+    text-transform: capitalize;
+}
+
+.clause-location {
+    display: block;
+    margin-top: 0.1rem;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+}
+
+.clause-text {
+    margin: 0.75rem 0;
+    padding-left: 0.85rem;
+    border-left: 2px solid var(--border-strong);
+    color: var(--text-muted);
+    font-style: italic;
+    font-size: 0.9rem;
+    overflow-wrap: anywhere;
+}
+
+.clause-section + .clause-section {
+    margin-top: 0.7rem;
+}
+
+.clause-section h4 {
+    margin-bottom: 0.2rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-faint);
+}
+
+.clause-section p {
+    font-size: 0.925rem;
+    overflow-wrap: anywhere;
+}
+
+.references {
+    margin-top: 0.85rem;
+    font-size: 0.875rem;
+}
+
+.references summary {
+    color: var(--accent-text);
+    cursor: pointer;
+}
+
+.reference-item {
+    margin-top: 0.6rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 8px;
+    background: var(--surface-raised);
+}
+
+.reference-item a {
+    color: var(--accent-text);
+    font-weight: 500;
+    text-decoration: none;
+    overflow-wrap: anywhere;
+>>>>>>> frontend-data
 }
 
 .reference-item a:hover {
     text-decoration: underline;
 }
 
+<<<<<<< HEAD
 .reference-summary {
     font-size: 0.9rem;
     color: #718096;
@@ -418,5 +1451,184 @@ textarea:focus {
     .summary-stats {
         width: 100%;
         justify-content: space-between;
+=======
+.reference-title {
+    font-weight: 500;
+}
+
+.reference-domain {
+    display: block;
+    font-size: 0.75rem;
+    color: var(--text-faint);
+}
+
+.reference-summary {
+    margin-top: 0.25rem;
+    color: var(--text-muted);
+}
+
+.result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-top: 1.25rem;
+}
+
+/* Error reply */
+.error-card {
+    padding: 1rem 1.15rem;
+    border: 1px solid color-mix(in srgb, var(--high) 40%, transparent);
+    border-radius: 12px;
+    background: var(--danger-soft);
+}
+
+.error-card h3 {
+    margin-bottom: 0.3rem;
+    font-size: 1rem;
+    color: var(--high);
+}
+
+.error-hint {
+    margin-top: 0.3rem;
+    font-size: 0.875rem;
+    color: var(--text-muted);
+}
+
+.error-card .result-actions {
+    margin-top: 0.9rem;
+}
+
+/* ---------- Confirmation dialog ---------- */
+
+.modal {
+    width: min(440px, calc(100% - 2rem));
+    margin: auto;
+    padding: 1.4rem 1.5rem 1.25rem;
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    background: var(--surface);
+    color: var(--text);
+    box-shadow: var(--shadow);
+}
+
+.modal::backdrop {
+    background: rgba(0, 0, 0, 0.55);
+}
+
+.modal-title {
+    font-size: 1.15rem;
+    font-weight: 600;
+}
+
+.modal-text {
+    margin-top: 0.35rem;
+    color: var(--text-muted);
+}
+
+.modal-file {
+    margin-top: 0.5rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.modal .field-error {
+    margin-top: 0.85rem;
+}
+
+.modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 0.6rem;
+    margin-top: 1.4rem;
+}
+
+.btn-secondary,
+.btn-danger {
+    padding: 0.55rem 1.1rem;
+    border: none;
+    border-radius: 9px;
+    font-weight: 600;
+    transition: background 0.15s, opacity 0.15s;
+}
+
+.btn-secondary {
+    background: var(--surface-raised);
+    color: var(--text);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--border);
+}
+
+.btn-danger {
+    background: var(--danger);
+    color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--danger-hover);
+}
+
+.btn-danger:focus-visible {
+    outline: 2px solid var(--danger);
+    outline-offset: 3px;
+}
+
+.btn-secondary:disabled,
+.btn-danger:disabled {
+    opacity: 0.6;
+}
+
+/* ---------- Narrow screens: sidebar slides in ---------- */
+
+@media (max-width: 860px) {
+    .sidebar {
+        position: fixed;
+        inset: 0 auto 0 0;
+        z-index: 20;
+        transform: translateX(-100%);
+        transition: transform 0.2s ease;
+    }
+
+    .app.sidebar-open .sidebar {
+        transform: none;
+        box-shadow: var(--shadow);
+    }
+
+    .app.sidebar-open .sidebar-backdrop {
+        display: block;
+        position: fixed;
+        inset: 0;
+        z-index: 10;
+        background: rgba(0, 0, 0, 0.45);
+    }
+
+    .topbar {
+        display: flex;
+    }
+
+    .auth-header {
+        padding: 1rem 1.25rem;
+    }
+
+    .auth-main {
+        padding-top: 2.5rem;
+    }
+}
+
+@media (min-width: 861px) {
+    .sidebar-close {
+        display: none;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+>>>>>>> frontend-data
     }
 }
