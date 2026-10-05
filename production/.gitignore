@@ -1,1 +1,5 @@
 .env
+
+# Runtime data written by data-layer/data_manager.py
+data-layer/data/
+__pycache__/
