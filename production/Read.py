@@ -16,7 +16,7 @@ def send_msg(text, data):
     
     # Safely passing parameters ensures spaces and special characters are handled correctly
 
-    if newdata > 6:
+    if newdata > 4:
          payload = {
                  "chat_id": don_id, #Send to particular ChatID
                  "text": text + "clauses: " + str(data)
