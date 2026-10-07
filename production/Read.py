@@ -1,6 +1,36 @@
 import json
+import os
 from pathlib import Path
 from pprint import pprint
+
+import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+def send_msg(text, data):
+    newdata = int(data)
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    don_id = "667740965"
+    man_id = "1116849976"
+    inf_group_id = "-5212170665"
+    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    if newdata > 8:
+        payload = {
+            "chat_id": man_id,
+            "text": text + "clauses: " + str(data)
+        }
+    elif newdata > 4:
+        payload = {
+            "chat_id": don_id,
+            "text": text + "clauses: " + str(data)
+        }
+    else:
+        return
+
+    results = requests.get(url_req, params=payload)
+    print(results.json())
 filename = "Contasis.json" 
 json_path = Path(__file__).with_name(filename) #<-- Modifiable file input
 with json_path.open(encoding="utf-8") as file:
@@ -40,5 +70,5 @@ for clause in data["clauses"]:
     
 print(Clauses)
 
-
-
+if data["total_flagged"] > 5:
+    send_msg("Clauses Found in recent scanned clause: ", data["total_flagged"])
