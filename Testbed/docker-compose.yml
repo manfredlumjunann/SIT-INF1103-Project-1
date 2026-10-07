@@ -16,11 +16,15 @@ services:
 
   logic-layer:
     build:
-      context: ./logic-layer
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: logic-layer/Dockerfile
     container_name: contract-analyzer-logic
     env_file:
       - .env
+    environment:
+      - DATA_DIR=/app/data
+    volumes:
+      - contract-data:/app/data
     networks:
       - contract-network
     restart: unless-stopped
@@ -29,3 +33,6 @@ services:
 networks:
   contract-network:
     driver: bridge
+
+volumes:
+  contract-data:

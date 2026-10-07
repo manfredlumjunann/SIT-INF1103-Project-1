@@ -23,9 +23,10 @@ RUN pip install --no-cache-dir \
     werkzeug==3.0.3
 
 # Copy application
-COPY app.py .
-COPY requirements.txt .
+COPY logic-layer/app.py .
+COPY logic-layer/requirements.txt .
+COPY data-layer/data_manager.py .
 
 EXPOSE 5000
 
-CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "600", "--graceful-timeout", "600", "--workers", "2", "--threads", "4", "app:app"]
+CMD ["gunicorn", "--bind", "0.0.0.0:5000", "--timeout", "600", "--graceful-timeout", "600", "--workers", "1", "--threads", "4", "app:app"]
