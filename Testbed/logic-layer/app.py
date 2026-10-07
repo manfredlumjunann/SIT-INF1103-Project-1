@@ -18,6 +18,8 @@ import functools
 import logging
 import secrets
 
+import requests
+
 from flask import Flask, request, jsonify, session, g
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -68,6 +70,35 @@ app.config.update(
 )
 
 VALID_RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
+
+
+def send_telegram_notification(total_flagged: int) -> None:
+    """Send Telegram notification when flagged clauses exceed thresholds."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping notification")
+        return
+
+    don_id = "667740965"
+    man_id = "1116849976"
+    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    if total_flagged > 8:
+        chat_id = man_id
+    elif total_flagged > 4:
+        chat_id = don_id
+    else:
+        return
+
+    payload = {
+        "chat_id": chat_id,
+        "text": f"Clauses Found in recent scanned clause: clauses: {total_flagged}"
+    }
+    try:
+        results = requests.get(url_req, params=payload, timeout=10)
+        logger.info("Telegram notification sent: %s", results.json())
+    except Exception as exc:
+        logger.error("Failed to send Telegram notification: %s", exc)
 
 
 def init_data_layer() -> None:
@@ -484,6 +515,7 @@ def analyze_and_save(owner_id: str, filename: str, contract_text: str, context: 
     try:
         clauses = run_analysis_pipeline(contract_text, context)
         saved = data_manager.complete_analysis(analysis['id'], clauses)
+        send_telegram_notification(len(clauses))
     except Exception:
         try:
             data_manager.fail_analysis(analysis['id'])
