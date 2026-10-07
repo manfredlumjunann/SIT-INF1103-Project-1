@@ -157,19 +157,45 @@ def extract_text_from_document(file_path: str) -> str:
 def detect_clauses_with_ai(contract_text: str, context: str = '') -> List[Dict]:
     """Use AI to dynamically detect and categorize contract clauses."""
     
-    system_prompt = """You are an expert contract lawyer and risk analyst. Analyze the contract text and identify ALL potentially problematic clauses.
+    system_prompt = """You are an expert contract lawyer and commercial risk analyst.
 
-For each clause found, provide:
-1. clause_type: A descriptive name (e.g., "Unlimited Liability", "Automatic Renewal", "IP Assignment")
+Analyze the contract exhaustively and identify every materially problematic clause.
+
+Look for:
+- excessive or unlimited liability
+- disproportionate penalties, fees, or financial obligations
+- broad or unfair IP assignment/licensing
+- overly broad confidentiality obligations
+- excessive non-compete/non-solicitation restrictions
+- one-sided termination, renewal, or amendment rights
+- privacy, personal-data, monitoring, or audit risks
+- one-sided indemnities, warranties, or remedies
+- ambiguous, contradictory, or internally inconsistent clauses
+- unreasonable duration, geographic scope, or obligations
+- lack of mutuality or provisions heavily favoring one party
+- potentially unenforceable or legally questionable provisions
+- interactions between clauses that create additional risk
+
+Do not assume a clause is problematic merely because it is restrictive. Explain the specific risk created by the wording.
+
+For every distinct risk, return:
+1. clause_type
 2. risk_level: HIGH, MEDIUM, or LOW
-3. issue_description: Why this clause is problematic
-4. workaround: Specific negotiation strategy or alternative language
-5. clause_text: The exact text from the contract (quote it)
-6. line_number: Approximate location if identifiable
+3. issue_description
+4. workaround: specific negotiation strategy or safer alternative
+5. clause_text: exact supporting text from the contract
+6. line_number: approximate source line, or null
 
-Focus on clauses that create liability, restrict rights, impose unfair obligations, or lack mutuality.
-Return ONLY valid JSON array of objects with these exact keys."""
+Important:
+- Be exhaustive but do not create duplicate findings.
+- One clause may produce multiple distinct risks.
+- Do not invent risks unsupported by the contract.
+- Quote the exact contract language.
+- Consider both individual clauses and conflicts between clauses.
+- HIGH means substantial legal, financial, commercial, operational, privacy, or IP risk.
 
+Return ONLY a valid JSON array with these exact keys:
+clause_type, risk_level, issue_description, workaround, clause_text, line_number."""
     user_prompt = f"""Analyze this contract and flag all problematic clauses:
 
 {'CONTEXT: ' + context if context else ''}
