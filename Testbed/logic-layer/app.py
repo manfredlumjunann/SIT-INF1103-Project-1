@@ -142,6 +142,19 @@ def login_required(view):
         if user is None:
             return jsonify({'error': 'Please sign in to continue.'}), 401
         g.user_id = user['id']
+        g.user_role = user['role']
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(view):
+    """Signed in as an admin. Everyone else gets 403, so admin data is protected by the
+    server and not by which page the browser happens to load."""
+    @functools.wraps(view)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if not current_user_is_admin():
+            return jsonify({'error': 'This area is for administrators only.'}), 403
         return view(*args, **kwargs)
     return wrapper
 
@@ -149,6 +162,11 @@ def login_required(view):
 def get_current_user_id() -> str:
     """Id of the signed-in user. Only valid inside routes decorated with @login_required."""
     return g.user_id
+
+
+def current_user_is_admin() -> bool:
+    """Only valid inside routes decorated with @login_required."""
+    return g.user_role == 'admin'
 
 
 # Authentication
@@ -666,6 +684,13 @@ def get_owned_analysis(analysis_id: str) -> Optional[Dict]:
     return analysis
 
 
+def get_readable_analysis(analysis_id: str) -> Optional[Dict]:
+    """The analysis if the current user may view it: their own, or any analysis for an admin."""
+    if current_user_is_admin():
+        return data_manager.get_analysis(analysis_id)
+    return get_owned_analysis(analysis_id)
+
+
 @app.route('/api/analyses', methods=['GET'])
 @login_required
 def list_saved_analyses():
@@ -685,7 +710,7 @@ def list_saved_analyses():
 @login_required
 def get_saved_analysis(analysis_id):
     """Reopen a saved analysis without calling the AI."""
-    analysis = get_owned_analysis(analysis_id)
+    analysis = get_readable_analysis(analysis_id)
     if analysis is None:
         return jsonify({'error': 'Analysis not found'}), 404
     return jsonify(analysis_response(analysis))
@@ -703,6 +728,43 @@ def delete_saved_analysis(analysis_id):
         return jsonify({'error': 'This analysis is still in progress. Try again once it has finished.'}), 409
     data_manager.delete_analysis(analysis_id)
     return jsonify({'deleted': analysis_id})
+
+
+# Admin: read-only view of every user's analyses
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def list_all_users():
+    """Every account with how many analyses it has saved."""
+    analysis_counts: Dict[str, int] = {}
+    for analysis in data_manager.list_analyses():
+        analysis_counts[analysis['owner_id']] = analysis_counts.get(analysis['owner_id'], 0) + 1
+
+    users = []
+    for user in data_manager.list_users():
+        entry = public_user(user)
+        entry['created_at'] = user['created_at']
+        entry['analysis_count'] = analysis_counts.get(user['id'], 0)
+        users.append(entry)
+    return jsonify({'users': users})
+
+
+@app.route('/api/admin/analyses', methods=['GET'])
+@admin_required
+def list_all_analyses():
+    """Analyses of one user (?user=<id>) or of everyone, newest first, labelled with their owner."""
+    owner_id = request.args.get('user') or None
+    if owner_id is not None and data_manager.get_user(owner_id) is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    usernames = {user['id']: user['username'] for user in data_manager.list_users()}
+    analyses = []
+    for analysis in data_manager.list_analyses(owner_id=owner_id):
+        entry = analysis_summary(analysis)
+        entry['owner_id'] = analysis['owner_id']
+        entry['owner_username'] = usernames.get(analysis['owner_id'], 'Deleted user')
+        analyses.append(entry)
+    return jsonify({'analyses': analyses})
 
 
 @app.route('/api/health', methods=['GET'])
