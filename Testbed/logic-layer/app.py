@@ -101,6 +101,27 @@ def send_telegram_notification(total_flagged: int) -> None:
         logger.error("Failed to send Telegram notification: %s", exc)
 
 
+def send_telegram_error_notification(error_message: str) -> None:
+    """Send AI error notifications to the INF group chat."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping error notification")
+        return
+
+    inf_group_id = "-5212170665"
+    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    payload = {
+        "chat_id": inf_group_id,
+        "text": f"⚠️ AI Processing Error\n\n{error_message}"
+    }
+    try:
+        results = requests.get(url_req, params=payload, timeout=10)
+        logger.info("Telegram error notification sent: %s", results.json())
+    except Exception as exc:
+        logger.error("Failed to send Telegram error notification: %s", exc)
+
+
 def init_data_layer() -> None:
     """Load all saved records and mark analyses that were interrupted by a restart as failed."""
     counts = data_manager.init_storage()
@@ -260,10 +281,30 @@ def get_openrouter_client() -> OpenAI:
     )
 
 
+def _classify_ai_error(error: Exception) -> str:
+    """Classify AI error into a user-friendly category for Telegram notifications."""
+    error_str = str(error).lower()
+    
+    if 'context_length' in error_str or 'maximum context' in error_str or 'too long' in error_str:
+        return 'Context length exceeded - document too large for AI processing'
+    if 'rate_limit' in error_str or '429' in error_str or 'quota' in error_str:
+        return 'Rate limit exceeded - too many requests'
+    if '404' in error_str or 'not found' in error_str:
+        return 'AI model unavailable'
+    if 'timeout' in error_str or 'timed out' in error_str:
+        return 'AI request timed out'
+    if 'authentication' in error_str or '401' in error_str or '403' in error_str:
+        return 'AI authentication failed'
+    if 'invalid' in error_str or 'malformed' in error_str:
+        return 'Invalid request to AI service'
+    return f'AI processing error: {str(error)[:200]}'
+
+
 def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
     """
     Call AI with automatic failover through available models.
     Skips unavailable models (404) immediately and tries next.
+    Sends Telegram notification on critical errors.
     Returns response text or raises exception if all models fail.
     """
     client = get_openrouter_client()
@@ -272,6 +313,7 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
     models_to_try = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
     
     last_error = None
+    error_category = None
     for model in models_to_try:
         for attempt in range(max_retries):
             try:
@@ -289,12 +331,17 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
             except Exception as e:
                 error_str = str(e)
                 last_error = e
+                error_category = _classify_ai_error(e)
                 # Skip 404 (model unavailable) immediately - no retry
                 if '404' in error_str or 'unavailable' in error_str.lower():
                     print(f"  ⏭ Model {model} unavailable (404), skipping...")
                     break  # Break inner retry loop, try next model
                 print(f"  ✗ Failed with {model}: {error_str[:100]}")
                 continue
+    
+    # Send Telegram notification for AI failures
+    if error_category:
+        send_telegram_error_notification(error_category)
     
     raise RuntimeError(
         f"All AI models are currently unavailable. Last error: {last_error}. "
