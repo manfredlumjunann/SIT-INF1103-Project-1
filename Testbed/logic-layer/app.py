@@ -638,12 +638,7 @@ def analysis_error_response(error: Exception):
 
 def analysis_response(analysis: Dict, cached_result: bool = False) -> Dict:
     """Full saved analysis in the shape the frontend renders."""
-    clauses = []
-    for clause in analysis['clauses']:
-        view = {key: value for key, value in clause.items() if key != 'references'}
-        view['legal_references'] = data_manager.resolve_references(clause)
-        view['line_number'] = clause['location']['raw']
-        clauses.append(view)
+    clauses = [clause_view(clause) for clause in analysis['clauses']]
 
     response = {
         'id': analysis['id'],
@@ -661,6 +656,14 @@ def analysis_response(analysis: Dict, cached_result: bool = False) -> Dict:
                                if analysis['status'] == 'failed'
                                else 'No problematic clauses detected')
     return response
+
+
+def clause_view(clause: Dict) -> Dict:
+    """One stored clause in the shape the frontend renders."""
+    view = {key: value for key, value in clause.items() if key != 'references'}
+    view['legal_references'] = data_manager.resolve_references(clause)
+    view['line_number'] = clause['location']['raw']
+    return view
 
 
 def analysis_summary(analysis: Dict) -> Dict:
@@ -728,6 +731,109 @@ def delete_saved_analysis(analysis_id):
         return jsonify({'error': 'This analysis is still in progress. Try again once it has finished.'}), 409
     data_manager.delete_analysis(analysis_id)
     return jsonify({'deleted': analysis_id})
+
+
+# Comparing two analyses
+
+RISK_RANK = {'LOW': 1, 'MEDIUM': 2, 'HIGH': 3}
+# Tried in this order: the same quoted text is a surer sign of the same clause than the same name
+CLAUSE_MATCH_FIELDS = ('clause_text', 'clause_type')
+
+
+def clause_match_key(clause: Dict, field: str) -> str:
+    """Lowercase with single spaces, so case and line wrapping do not prevent a match."""
+    return ' '.join(str(clause.get(field) or '').lower().split())
+
+
+def match_clauses(clauses_a: List[Dict], clauses_b: List[Dict]) -> Dict[str, List]:
+    """Pair up the clauses of two analyses without calling the AI, so the same two analyses
+    always give the same comparison. Each clause is used at most once; when a key appears
+    several times, clauses pair up in the order they were flagged."""
+    pairs = []
+    left_a = list(range(len(clauses_a)))
+    left_b = list(range(len(clauses_b)))
+
+    for field in CLAUSE_MATCH_FIELDS:
+        waiting: Dict[str, List[int]] = {}
+        for index_b in left_b:
+            key = clause_match_key(clauses_b[index_b], field)
+            if key:
+                waiting.setdefault(key, []).append(index_b)
+
+        unmatched_a = []
+        matched_b = set()
+        for index_a in left_a:
+            candidates = waiting.get(clause_match_key(clauses_a[index_a], field))
+            if candidates:
+                index_b = candidates.pop(0)
+                matched_b.add(index_b)
+                pairs.append((index_a, index_b, field))
+            else:
+                unmatched_a.append(index_a)
+        left_a = unmatched_a
+        left_b = [index_b for index_b in left_b if index_b not in matched_b]
+
+    pairs.sort()
+    return {'pairs': pairs, 'only_a': left_a, 'only_b': left_b}
+
+
+def risk_change(clause_a: Dict, clause_b: Dict) -> str:
+    """How the risk in B compares with A: 'higher', 'lower' or 'same'."""
+    difference = RISK_RANK.get(clause_b['risk_level'], 0) - RISK_RANK.get(clause_a['risk_level'], 0)
+    if difference == 0:
+        return 'same'
+    return 'higher' if difference > 0 else 'lower'
+
+
+def comparison_response(analysis_a: Dict, analysis_b: Dict) -> Dict:
+    clauses_a = analysis_a['clauses']
+    clauses_b = analysis_b['clauses']
+    matched = match_clauses(clauses_a, clauses_b)
+
+    usernames = {}
+    sides = {}
+    for side, analysis in (('a', analysis_a), ('b', analysis_b)):
+        owner_id = analysis['owner_id']
+        if owner_id not in usernames:
+            owner = data_manager.get_user(owner_id)
+            usernames[owner_id] = owner['username'] if owner else 'Deleted user'
+        sides[side] = analysis_summary(analysis)
+        sides[side]['owner_username'] = usernames[owner_id]
+
+    return {
+        'a': sides['a'],
+        'b': sides['b'],
+        'same_contract': analysis_a['contract_text'] == analysis_b['contract_text'],
+        'in_both': [{
+            'a': clause_view(clauses_a[index_a]),
+            'b': clause_view(clauses_b[index_b]),
+            'matched_on': 'text' if field == 'clause_text' else 'type',
+            'risk_change': risk_change(clauses_a[index_a], clauses_b[index_b]),
+        } for index_a, index_b, field in matched['pairs']],
+        'only_a': [clause_view(clauses_a[index]) for index in matched['only_a']],
+        'only_b': [clause_view(clauses_b[index]) for index in matched['only_b']],
+    }
+
+
+@app.route('/api/compare', methods=['GET'])
+@login_required
+def compare_analyses():
+    """Compare two finished analyses: ?a=<id>&b=<id>. Customers can compare their own;
+    an admin can compare any two, including analyses of different users."""
+    id_a = request.args.get('a') or ''
+    id_b = request.args.get('b') or ''
+    if not id_a or not id_b:
+        return jsonify({'error': 'Choose two analyses to compare.'}), 400
+    if id_a == id_b:
+        return jsonify({'error': 'Choose two different analyses to compare.'}), 400
+
+    analysis_a = get_readable_analysis(id_a)
+    analysis_b = get_readable_analysis(id_b)
+    if analysis_a is None or analysis_b is None:
+        return jsonify({'error': 'Analysis not found'}), 404
+    if analysis_a['status'] != 'done' or analysis_b['status'] != 'done':
+        return jsonify({'error': 'Only finished analyses can be compared.'}), 409
+    return jsonify(comparison_response(analysis_a, analysis_b))
 
 
 # Admin: read-only view of every user's analyses
