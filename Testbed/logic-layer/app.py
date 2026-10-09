@@ -158,6 +158,37 @@ USERNAME_RULES_MESSAGE = "Username must be 3-30 characters using letters, number
 LOGIN_FAILED_MESSAGE = 'Incorrect username or password.'
 
 
+def seed_admin_user() -> None:
+    """Create the admin account named by ADMIN_USERNAME / ADMIN_PASSWORD in .env, if it does
+    not exist yet. Registration only ever creates customers, so this is how an admin is made."""
+    username = (os.getenv('ADMIN_USERNAME') or '').strip().lower()
+    password = os.getenv('ADMIN_PASSWORD') or ''
+    if not username and not password:
+        return
+    if not username or len(password) < MIN_PASSWORD_LENGTH:
+        logger.warning("Admin account not created: set both ADMIN_USERNAME and an ADMIN_PASSWORD "
+                       "of at least %d characters in .env", MIN_PASSWORD_LENGTH)
+        return
+
+    existing = data_manager.find_user_by_username(username)
+    if existing is not None:
+        if existing['role'] != 'admin':
+            # Never change an existing account's role or password from here
+            logger.warning("ADMIN_USERNAME '%s' already belongs to a %s account; it was left unchanged",
+                           username, existing['role'])
+        return
+
+    try:
+        data_manager.create_user(username, generate_password_hash(password), role='admin')
+    except ValueError as e:
+        logger.warning("Admin account not created: %s", e)
+        return
+    logger.info("Created admin account '%s'", username)
+
+
+seed_admin_user()
+
+
 def public_user(user: Dict) -> Dict:
     return {'id': user['id'], 'username': user['username'], 'role': user['role']}
 
