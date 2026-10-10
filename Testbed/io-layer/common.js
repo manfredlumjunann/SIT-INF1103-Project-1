@@ -82,6 +82,12 @@ function describeHttpError(status, serverMessage) {
                 message: 'Your session has ended.',
                 hint: 'Taking you to the login page...'
             };
+        case 403:
+            return {
+                title: 'Not allowed',
+                message: serverMessage || 'Your account is not allowed to view this.',
+                hint: 'Sign in with an administrator account to see other users\' analyses.'
+            };
         case 404:
             return {
                 title: 'Analysis not found',
@@ -163,6 +169,33 @@ function renderAssistantShell() {
     label.appendChild(brandMark());
     label.appendChild(createElement('span', '', 'Clause Analyzer'));
     message.appendChild(label);
+    return message;
+}
+
+// A spinner with one line of text, as an assistant message.
+function renderThinking(text) {
+    const message = renderAssistantShell();
+    const thinking = createElement('div', 'thinking');
+    thinking.setAttribute('role', 'status');
+    thinking.appendChild(createElement('span', 'spinner'));
+    thinking.appendChild(createElement('span', 'thinking-text', text));
+    message.appendChild(thinking);
+    return message;
+}
+
+// An error as an assistant message. actions is a list of [button label, click handler].
+function renderErrorCard(details, actions) {
+    const message = renderAssistantShell();
+    const card = createElement('div', 'error-card');
+    card.setAttribute('role', 'alert');
+    card.appendChild(createElement('h3', '', details.title));
+    card.appendChild(createElement('p', '', details.message));
+    if (details.hint) card.appendChild(createElement('p', 'error-hint', details.hint));
+
+    const buttons = createElement('div', 'result-actions');
+    actions.forEach(([label, onClick]) => buttons.appendChild(actionButton(label, onClick)));
+    card.appendChild(buttons);
+    message.appendChild(card);
     return message;
 }
 

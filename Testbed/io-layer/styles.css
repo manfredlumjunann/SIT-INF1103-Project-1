@@ -1291,6 +1291,183 @@ body.auth-pending .app {
     }
 }
 
+/* ---------- Admin page ---------- */
+
+.role-tag {
+    padding: 0.05rem 0.45rem;
+    border-radius: 6px;
+    background: var(--accent-soft);
+    color: var(--accent-text);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.history-title .role-tag {
+    margin-left: 0.4rem;
+}
+
+.admin-panel {
+    width: 100%;
+    max-width: 780px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 1rem;
+}
+
+.admin-thread {
+    padding-top: 1.25rem;
+}
+
+.admin-title {
+    font-size: 1.4rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.admin-panel > .field-error,
+.admin-panel > .notice {
+    margin-top: 1rem;
+}
+
+.analysis-list {
+    display: grid;
+    gap: 0.6rem;
+    margin-top: 1.1rem;
+    list-style: none;
+}
+
+.analysis-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+}
+
+.analysis-row.picked {
+    border-color: var(--accent);
+    background: var(--accent-soft);
+}
+
+.row-main {
+    min-width: 0;
+}
+
+.row-title {
+    display: block;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.row-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.2rem 0.6rem;
+    margin-top: 0.15rem;
+    font-size: 0.8rem;
+    color: var(--text-faint);
+}
+
+.row-context {
+    margin-top: 0.25rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.row-actions {
+    display: flex;
+    flex-shrink: 0;
+    gap: 0.4rem;
+}
+
+.btn-ghost:disabled {
+    opacity: 0.45;
+}
+
+.btn-ghost[aria-pressed="true"] {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+}
+
+.admin-owner {
+    margin-bottom: 0.75rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+/* The two analyses picked for comparison; stays in view while browsing other users */
+.compare-tray {
+    position: sticky;
+    bottom: 0;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.6rem 1rem;
+    width: 100%;
+    max-width: 780px;
+    margin: auto auto 0;
+    padding: 0.75rem 1.25rem 1rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg);
+}
+
+.compare-slots {
+    display: grid;
+    flex: 1;
+    gap: 0.35rem;
+    min-width: 220px;
+}
+
+.compare-slot {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+    font-size: 0.875rem;
+}
+
+.compare-slot-text {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.compare-slot.empty .compare-slot-text {
+    color: var(--text-faint);
+}
+
+.compare-slot.empty .compare-letter {
+    background: var(--surface-raised);
+    color: var(--text-muted);
+}
+
+.compare-slot .icon-btn {
+    width: 26px;
+    height: 26px;
+    flex-shrink: 0;
+}
+
+.compare-slot .icon {
+    width: 14px;
+    height: 14px;
+}
+
+@media (max-width: 640px) {
+    .analysis-row {
+        flex-direction: column;
+        align-items: stretch;
+    }
+}
+
 /* ---------- Confirmation dialog ---------- */
 
 .modal {

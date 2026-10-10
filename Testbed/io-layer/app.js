@@ -304,12 +304,7 @@ function renderUserMessage({ context }) {
 }
 
 function renderLoading(text = PROGRESS_STEPS[0]) {
-    const message = renderAssistantShell();
-    const thinking = createElement('div', 'thinking');
-    thinking.setAttribute('role', 'status');
-    thinking.appendChild(createElement('span', 'spinner'));
-    thinking.appendChild(createElement('span', 'thinking-text', text));
-    message.appendChild(thinking);
+    const message = renderThinking(text);
     if (text === PROGRESS_STEPS[0]) {
         message.appendChild(createElement('p', 'thinking-note',
             'Analyses usually take a few minutes. You can open a saved analysis meanwhile; this one will appear in the sidebar when it finishes.'));
@@ -318,19 +313,7 @@ function renderLoading(text = PROGRESS_STEPS[0]) {
 }
 
 function renderError(details) {
-    const message = renderAssistantShell();
-    const card = createElement('div', 'error-card');
-    card.setAttribute('role', 'alert');
-    card.appendChild(createElement('h3', '', details.title));
-    card.appendChild(createElement('p', '', details.message));
-    if (details.hint) card.appendChild(createElement('p', 'error-hint', details.hint));
-
-    const actions = createElement('div', 'result-actions');
-    actions.appendChild(actionButton('Try again', retryLastAction));
-    actions.appendChild(actionButton('Start over', startNewAnalysis));
-    card.appendChild(actions);
-    message.appendChild(card);
-    return message;
+    return renderErrorCard(details, [['Try again', retryLastAction], ['Start over', startNewAnalysis]]);
 }
 
 // ---------- Sidebar: saved analyses ----------
@@ -587,6 +570,11 @@ async function initPage() {
             return;
         }
         const data = await response.json();
+        if (data && data.user && data.user.role === 'admin') {
+            // Admins have their own page
+            window.location.replace('/admin_index.html');
+            return;
+        }
         showSignedInUser(data && data.user);
     } catch (error) {
         console.error('Checking sign-in failed:', error);

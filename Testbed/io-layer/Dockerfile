@@ -8,9 +8,11 @@ RUN rm /usr/share/nginx/html/index.html
 
 # Copy static files
 COPY user_index.html /usr/share/nginx/html/
+COPY admin_index.html /usr/share/nginx/html/
 COPY styles.css /usr/share/nginx/html/
 COPY common.js /usr/share/nginx/html/
 COPY app.js /usr/share/nginx/html/
+COPY admin.js /usr/share/nginx/html/
 COPY login.html /usr/share/nginx/html/
 COPY login.js /usr/share/nginx/html/
 COPY theme.js /usr/share/nginx/html/
