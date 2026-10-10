@@ -389,6 +389,126 @@ function formatShortDate(timestamp) {
         : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
 }
 
+// ---------- Comparison rendering ----------
+
+const RISK_CHANGE_LABELS = { higher: 'Higher risk in B', lower: 'Lower risk in B', same: 'Same risk level' };
+
+// Shows a /api/compare response. showOwners adds whose analysis each side is (admin page).
+function renderComparison(comparison, showOwners = false) {
+    const listOf = (value) => (Array.isArray(value) ? value : []);
+    const inBoth = listOf(comparison.in_both);
+    const onlyA = listOf(comparison.only_a);
+    const onlyB = listOf(comparison.only_b);
+    const changed = inBoth.filter(pair => pair.risk_change !== 'same').length;
+
+    const message = renderAssistantShell();
+    const sides = createElement('div', 'compare-sides');
+    sides.appendChild(renderCompareSide('A', comparison.a, showOwners));
+    sides.appendChild(renderCompareSide('B', comparison.b, showOwners));
+    message.appendChild(sides);
+
+    if (inBoth.length + onlyA.length + onlyB.length === 0) {
+        message.appendChild(renderNotice('Neither analysis flagged any clauses, so there is nothing to compare.'));
+        return message;
+    }
+
+    const summary = createElement('div', 'summary');
+    summary.appendChild(createElement('span', 'summary-text',
+        `${inBoth.length} in both (${changed} with a different risk level), `
+        + `${onlyA.length} only in A, ${onlyB.length} only in B.`));
+    message.appendChild(summary);
+    if (comparison.same_contract) {
+        message.appendChild(renderNotice('Both analyses are of the same contract text.', '',
+            'Differences come from the context that was given, or from the AI flagging different clauses.'));
+    }
+
+    message.appendChild(renderCompareSection(`In both (${inBoth.length})`, inBoth.map(renderComparePair)));
+    message.appendChild(renderCompareSection(`Only in A (${onlyA.length})`,
+        onlyA.map((clause, index) => renderClause(clause, index))));
+    message.appendChild(renderCompareSection(`Only in B (${onlyB.length})`,
+        onlyB.map((clause, index) => renderClause(clause, index))));
+    return message;
+}
+
+// One of the two analyses being compared: which file, when, and its risk counts.
+function renderCompareSide(letter, summary, showOwner) {
+    const side = createElement('div', 'compare-side');
+    const title = createElement('div', 'compare-side-title');
+    title.appendChild(createElement('span', 'compare-letter', letter));
+    title.appendChild(createElement('span', 'compare-file', summary.filename || 'Contract'));
+    side.appendChild(title);
+
+    const details = [formatDateTime(summary.timestamp)];
+    if (showOwner) details.unshift(summary.owner_username || 'Unknown user');
+    side.appendChild(createElement('p', 'result-meta', details.join(' · ')));
+    if (summary.context) side.appendChild(createElement('p', 'compare-context', `Context: ${summary.context}`));
+
+    const counts = summary.counts || {};
+    const pills = createElement('div', 'compare-counts');
+    RISK_LEVELS.forEach(level => {
+        pills.appendChild(createElement('span', `pill ${level}`, `${counts[level] || 0} ${level}`));
+    });
+    side.appendChild(pills);
+    return side;
+}
+
+function renderCompareSection(heading, items) {
+    const section = createElement('section', 'compare-section');
+    section.appendChild(createElement('h3', '', heading));
+    if (items.length === 0) {
+        section.appendChild(createElement('p', 'compare-empty', 'None'));
+        return section;
+    }
+    const list = createElement('div', 'clause-list');
+    items.forEach(item => list.appendChild(item));
+    section.appendChild(list);
+    return section;
+}
+
+// A clause found in both analyses: the risk level in each, with both full versions on demand.
+function renderComparePair(pair, index) {
+    const riskA = normaliseRisk(pair.a);
+    const riskB = normaliseRisk(pair.b);
+    const change = RISK_CHANGE_LABELS[pair.risk_change] ? pair.risk_change : 'same';
+    const typeA = String(pair.a.clause_type || 'Unnamed clause');
+    const typeB = String(pair.b.clause_type || 'Unnamed clause');
+
+    const card = createElement('article', `clause-card compare-pair ${change}`);
+    const header = createElement('div', 'clause-header');
+    const titleBlock = createElement('div');
+    titleBlock.appendChild(createElement('span', 'clause-type', `${index + 1}. ${typeA}`));
+    if (typeA.trim().toLowerCase() !== typeB.trim().toLowerCase()) {
+        titleBlock.appendChild(createElement('span', 'clause-location', `Called "${typeB}" in B`));
+    }
+    header.appendChild(titleBlock);
+
+    const shift = createElement('span', 'risk-shift');
+    shift.appendChild(createElement('span', `pill ${riskA}`, riskA));
+    shift.appendChild(createElement('span', 'risk-arrow', '→'));
+    shift.appendChild(createElement('span', `pill ${riskB}`, riskB));
+    header.appendChild(shift);
+    card.appendChild(header);
+
+    const note = createElement('p', 'compare-note');
+    note.appendChild(createElement('span', `compare-change ${change}`, RISK_CHANGE_LABELS[change]));
+    note.appendChild(createElement('span', '',
+        pair.matched_on === 'text' ? 'Same clause text in both' : 'Matched by clause type'));
+    card.appendChild(note);
+
+    const details = createElement('details', 'compare-details');
+    details.appendChild(createElement('summary', '', 'Show both versions'));
+    const columns = createElement('div', 'compare-columns');
+    [['A', pair.a], ['B', pair.b]].forEach(([letter, clause]) => {
+        const column = createElement('div', 'compare-column');
+        column.appendChild(createElement('span', 'compare-letter', letter));
+        column.appendChild(renderClause(clause, index));
+        columns.appendChild(column);
+    });
+    details.appendChild(columns);
+    card.appendChild(details);
+    return card;
+}
+
 // ---------- Export ----------
 
 function exportReport(result, format) {

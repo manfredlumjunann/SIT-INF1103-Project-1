@@ -367,11 +367,13 @@ async function loadHistory() {
         }
     });
     setActiveHistoryItem(analysisResult ? analysisResult.id : null);
+    updateCompareUi();
 }
 
 function showHistoryMessage(message) {
     historyMessage.textContent = message;
     historyMessage.hidden = false;
+    updateCompareUi();   // the list is empty now, so nothing can be picked
 }
 
 function renderHistoryItem(entry) {
@@ -382,8 +384,12 @@ function renderHistoryItem(entry) {
     const button = createElement('button', 'history-item');
     button.type = 'button';
     button.dataset.id = entry.id;
+    button.dataset.status = status;
     button.title = entry.context ? `${entry.filename}\n${entry.context}` : entry.filename || '';
-    button.addEventListener('click', () => openSavedAnalysis(entry));
+    button.addEventListener('click', () => {
+        if (compareMode) toggleCompareSelection(entry.id);
+        else openSavedAnalysis(entry);
+    });
 
     button.appendChild(createElement('span', 'history-title', entry.filename || 'Contract'));
     const meta = createElement('span', 'history-meta');
@@ -417,6 +423,91 @@ function renderHistoryItem(entry) {
         item.appendChild(deleteBtn);
     }
     return item;
+}
+
+// ---------- Comparing two analyses ----------
+
+const compareToggle = document.getElementById('compare-toggle');
+const compareBar = document.getElementById('compare-bar');
+const compareHint = document.getElementById('compare-hint');
+const compareRunBtn = document.getElementById('compare-run');
+let compareMode = false;        // while on, clicking a saved analysis picks it instead of opening it
+let compareSelection = [];      // ids of the picked analyses in the order picked: A, then B
+
+compareToggle.addEventListener('click', () => setCompareMode(!compareMode));
+document.getElementById('compare-cancel').addEventListener('click', () => setCompareMode(false));
+compareRunBtn.addEventListener('click', () => {
+    if (compareSelection.length !== 2) return;
+    const [idA, idB] = compareSelection;
+    setCompareMode(false);
+    openComparison(idA, idB);
+});
+
+function setCompareMode(on) {
+    compareMode = on;
+    compareSelection = [];
+    compareBar.hidden = !on;
+    compareToggle.setAttribute('aria-pressed', String(on));
+    historyList.classList.toggle('compare-mode', on);
+    updateCompareUi();
+}
+
+function toggleCompareSelection(analysisId) {
+    const position = compareSelection.indexOf(analysisId);
+    if (position >= 0) {
+        compareSelection.splice(position, 1);
+    } else {
+        if (compareSelection.length === 2) compareSelection.shift();   // a third pick replaces the first
+        compareSelection.push(analysisId);
+    }
+    updateCompareUi();
+}
+
+// Brings the sidebar list, the A/B markers and the Compare button in line with the current picks.
+function updateCompareUi() {
+    const buttons = Array.from(historyList.querySelectorAll('.history-item'));
+    // A pick that is no longer listed (filtered out or deleted) is dropped
+    compareSelection = compareSelection.filter(id => buttons.some(button => button.dataset.id === id));
+
+    let comparable = 0;
+    buttons.forEach(button => {
+        const finished = button.dataset.status === 'done';
+        if (finished) comparable++;
+        const slot = compareSelection.indexOf(button.dataset.id);
+        button.disabled = compareMode && !finished;   // only finished analyses can be compared
+        if (compareMode) button.setAttribute('aria-pressed', String(slot >= 0));
+        else button.removeAttribute('aria-pressed');
+        if (slot >= 0) button.dataset.slot = slot === 0 ? 'A' : 'B';
+        else delete button.dataset.slot;
+    });
+
+    compareRunBtn.disabled = compareSelection.length !== 2;
+    if (comparable < 2) compareHint.textContent = 'You need two finished analyses in this list to compare.';
+    else if (compareSelection.length === 2) compareHint.textContent = 'Ready to compare A with B.';
+    else compareHint.textContent = compareSelection.length === 1 ? 'Pick one more analysis.' : 'Pick two analyses.';
+}
+
+// No AI call: the server works out the differences from the two saved analyses.
+async function openComparison(idA, idB) {
+    const requestId = ++activeRequestId;
+    lastAction = () => openComparison(idA, idB);
+    analysisResult = null;
+    removeFile();
+    setBusy(false);
+    setSidebarOpen(false);
+    setActiveHistoryItem(null);
+    showThread({ context: '' }, renderLoading('Comparing the two analyses...'));
+
+    try {
+        const comparison = await fetchJson(
+            `/api/compare?a=${encodeURIComponent(idA)}&b=${encodeURIComponent(idB)}`);
+        if (requestId === activeRequestId) showThread({ context: '' }, renderComparison(comparison));
+    } catch (error) {
+        console.error('Comparing analyses failed:', error);
+        if (requestId === activeRequestId) {
+            showThread({ context: '' }, renderError({ ...toDisplayError(error), title: 'Could not compare' }));
+        }
+    }
 }
 
 // ---------- Deleting a saved analysis ----------

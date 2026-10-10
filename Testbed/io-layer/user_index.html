@@ -34,13 +34,23 @@
             <div class="sidebar-section">
                 <div class="sidebar-heading">
                     <span>Analyses</span>
-                    <select id="history-filter" class="history-filter" aria-label="Filter saved analyses">
-                        <option value="">All</option>
-                        <option value="risk=high">High Risk</option>
-                        <option value="risk=medium">Medium Risk</option>
-                        <option value="risk=low">Low Risk</option>
-                        <option value="status=failed">Failed</option>
-                    </select>
+                    <span class="heading-tools">
+                        <button type="button" id="compare-toggle" class="heading-btn" aria-pressed="false">Compare</button>
+                        <select id="history-filter" class="history-filter" aria-label="Filter saved analyses">
+                            <option value="">All</option>
+                            <option value="risk=high">High Risk</option>
+                            <option value="risk=medium">Medium Risk</option>
+                            <option value="risk=low">Low Risk</option>
+                            <option value="status=failed">Failed</option>
+                        </select>
+                    </span>
+                </div>
+                <div id="compare-bar" class="compare-bar" hidden>
+                    <p id="compare-hint" class="compare-hint" aria-live="polite"></p>
+                    <div class="compare-bar-actions">
+                        <button type="button" id="compare-run" class="btn-primary" disabled>Compare</button>
+                        <button type="button" id="compare-cancel" class="btn-ghost">Cancel</button>
+                    </div>
                 </div>
                 <p id="history-message" class="history-message" hidden></p>
                 <ul id="history-list" class="history-list"></ul>
