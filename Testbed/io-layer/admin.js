@@ -134,7 +134,8 @@ async function loadAnalyses() {
     if (requestedFor !== selectedUser) return;
 
     listedAnalyses = entries;
-    listSubtitle.textContent = `${entries.length} saved ${entries.length === 1 ? 'analysis' : 'analyses'}, newest first`;
+    listSubtitle.textContent = `${entries.length} saved ${entries.length === 1 ? 'analysis' : 'analyses'}, `
+        + (selectedUser ? 'newest first' : 'grouped by user');
     if (entries.length === 0) {
         showListMessage(selectedUser ? 'This user has not analysed any contracts yet.' : 'No contracts have been analysed yet.');
     }
@@ -146,15 +147,46 @@ function showListMessage(message) {
     listMessage.hidden = false;
 }
 
+// One user's analyses are a plain list; "All users" is grouped under a heading per user.
 function renderAnalysisRows() {
     analysisList.replaceChildren();
-    listedAnalyses.forEach(entry => {
+    if (selectedUser) {
+        appendAnalysisRows(analysisList, listedAnalyses);
+        return;
+    }
+    groupByOwner(listedAnalyses).forEach(group => {
+        const count = group.entries.length;
+        const item = createElement('li', 'analysis-group');
+        const heading = createElement('h2', 'group-title', group.username);
+        heading.appendChild(createElement('span', 'group-count', `${count} ${count === 1 ? 'analysis' : 'analyses'}`));
+        item.appendChild(heading);
+
+        const rows = createElement('ul', 'analysis-list');
+        appendAnalysisRows(rows, group.entries);
+        item.appendChild(rows);
+        analysisList.appendChild(item);
+    });
+}
+
+function appendAnalysisRows(list, entries) {
+    entries.forEach(entry => {
         try {
-            analysisList.appendChild(renderAnalysisRow(entry));
+            list.appendChild(renderAnalysisRow(entry));
         } catch (error) {
             console.error('Could not render analysis:', error, entry);
         }
     });
+}
+
+// [{username, entries}] ordered by username; each user's analyses keep the server's newest-first order.
+function groupByOwner(entries) {
+    const groups = new Map();
+    entries.forEach(entry => {
+        const key = String(entry.owner_id || '');
+        if (!groups.has(key)) groups.set(key, { username: entry.owner_username || 'Unknown user', entries: [] });
+        groups.get(key).entries.push(entry);
+    });
+    return Array.from(groups.values()).sort((a, b) => a.username.localeCompare(b.username));
 }
 
 function renderAnalysisRow(entry) {
@@ -167,7 +199,6 @@ function renderAnalysisRow(entry) {
     main.appendChild(createElement('span', 'row-title', entry.filename || 'Contract'));
 
     const meta = createElement('div', 'row-meta');
-    if (!selectedUser) meta.appendChild(createElement('span', '', entry.owner_username || 'Unknown user'));
     meta.appendChild(createElement('span', '', formatDateTime(entry.timestamp)));
     if (status === 'done') {
         const dots = createElement('span', 'risk-dots');

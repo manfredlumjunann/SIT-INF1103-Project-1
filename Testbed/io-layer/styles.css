@@ -1337,6 +1337,30 @@ body.auth-pending .app {
     list-style: none;
 }
 
+/* "All users": one block per user, with that user's analyses underneath */
+.analysis-group + .analysis-group {
+    margin-top: 1rem;
+}
+
+.group-title {
+    display: flex;
+    align-items: baseline;
+    gap: 0.6rem;
+    font-size: 1.05rem;
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.group-count {
+    font-size: 0.8rem;
+    font-weight: 400;
+    color: var(--text-faint);
+}
+
+.analysis-group .analysis-list {
+    margin-top: 0.6rem;
+}
+
 .analysis-row {
     display: flex;
     align-items: center;
