@@ -167,7 +167,7 @@ function clearMessages() {
 }
 
 function goToMainPage() {
-    window.location.replace('/');
+    window.location.replace('/user_index.html');
 }
 
 // Skip the form entirely if this browser is already signed in.
