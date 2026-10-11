@@ -226,8 +226,10 @@ function showResult(result) {
     analysisResult = result;
     const userTurn = { filename: result.filename, context: result.context };
     try {
-        showThread(userTurn, renderResult(result));
+        const message = renderResult(result);
+        showThread(userTurn, message);
         setActiveHistoryItem(result.id);
+        addCompareOptions(result, message);
     } catch (error) {
         console.error('Rendering results failed:', error, result);
         showThread(userTurn, renderError({
@@ -350,13 +352,11 @@ async function loadHistory() {
         }
     });
     setActiveHistoryItem(analysisResult ? analysisResult.id : null);
-    updateCompareUi();
 }
 
 function showHistoryMessage(message) {
     historyMessage.textContent = message;
     historyMessage.hidden = false;
-    updateCompareUi();   // the list is empty now, so nothing can be picked
 }
 
 function renderHistoryItem(entry) {
@@ -367,12 +367,8 @@ function renderHistoryItem(entry) {
     const button = createElement('button', 'history-item');
     button.type = 'button';
     button.dataset.id = entry.id;
-    button.dataset.status = status;
     button.title = entry.context ? `${entry.filename}\n${entry.context}` : entry.filename || '';
-    button.addEventListener('click', () => {
-        if (compareMode) toggleCompareSelection(entry.id);
-        else openSavedAnalysis(entry);
-    });
+    button.addEventListener('click', () => openSavedAnalysis(entry));
 
     button.appendChild(createElement('span', 'history-title', entry.filename || 'Contract'));
     const meta = createElement('span', 'history-meta');
@@ -409,71 +405,131 @@ function renderHistoryItem(entry) {
 }
 
 // ---------- Comparing two analyses ----------
+// Comparison starts from the analysis on screen: a "Compare with..." button under it lists the
+// user's other finished analyses, and an earlier analysis of the same file is offered directly.
 
-const compareToggle = document.getElementById('compare-toggle');
-const compareBar = document.getElementById('compare-bar');
-const compareHint = document.getElementById('compare-hint');
-const compareRunBtn = document.getElementById('compare-run');
-let compareMode = false;        // while on, clicking a saved analysis picks it instead of opening it
-let compareSelection = [];      // ids of the picked analyses in the order picked: A, then B
+const compareDialog = document.getElementById('compare-dialog');
+const compareDialogList = document.getElementById('compare-dialog-list');
 
-compareToggle.addEventListener('click', () => setCompareMode(!compareMode));
-document.getElementById('compare-cancel').addEventListener('click', () => setCompareMode(false));
-compareRunBtn.addEventListener('click', () => {
-    if (compareSelection.length !== 2) return;
-    const [idA, idB] = compareSelection;
-    setCompareMode(false);
-    openComparison(idA, idB);
+document.getElementById('compare-dialog-cancel').addEventListener('click', () => compareDialog.close());
+// Clicking the dimmed backdrop (outside the box) cancels, like Esc does
+compareDialog.addEventListener('click', (event) => {
+    if (event.target === compareDialog) compareDialog.close();
 });
 
-function setCompareMode(on) {
-    compareMode = on;
-    compareSelection = [];
-    compareBar.hidden = !on;
-    compareToggle.setAttribute('aria-pressed', String(on));
-    historyList.classList.toggle('compare-mode', on);
-    updateCompareUi();
-}
-
-function toggleCompareSelection(analysisId) {
-    const position = compareSelection.indexOf(analysisId);
-    if (position >= 0) {
-        compareSelection.splice(position, 1);
-    } else {
-        if (compareSelection.length === 2) compareSelection.shift();   // a third pick replaces the first
-        compareSelection.push(analysisId);
+// Adds the compare options to a displayed result once the user's other analyses are known.
+// Failing to load them only means the options are not offered.
+async function addCompareOptions(result, message) {
+    if (result.status !== 'done') return;   // only finished analyses can be compared
+    let others;
+    try {
+        const data = await fetchJson('/api/analyses?status=done');
+        const entries = Array.isArray(data && data.analyses) ? data.analyses : [];
+        others = entries.filter(entry => entry.id !== result.id);
+    } catch (error) {
+        console.error('Loading analyses to compare with failed:', error);
+        return;
     }
-    updateCompareUi();
+    // Another analysis may be on screen by the time the list arrives
+    if (analysisResult !== result || !message.isConnected || others.length === 0) return;
+
+    const sameFile = others.filter(entry => isSameFile(entry, result));
+    // The picker would only repeat the suggestion when the one other analysis is of the same file
+    if (others.length > sameFile.length || sameFile.length > 1) {
+        const pickerBtn = actionButton(sameFile.length > 0 ? 'Compare with another…' : 'Compare with…',
+            () => openComparePicker(result, sameFile, others));
+        pickerBtn.classList.add('compare-open');
+        // At the right end of the "Found N clauses" row, so it is seen without scrolling.
+        // An analysis with no clauses has no such row; there it joins the export buttons.
+        const home = message.querySelector('.summary') || message.querySelector('.result-actions');
+        if (home) home.appendChild(pickerBtn);
+    }
+    if (sameFile.length > 0) {
+        const meta = message.querySelector('.result-meta');
+        meta.insertAdjacentElement('afterend', renderCompareSuggestion(result, sameFile));
+    }
 }
 
-// Brings the sidebar list, the A/B markers and the Compare button in line with the current picks.
-function updateCompareUi() {
-    const buttons = Array.from(historyList.querySelectorAll('.history-item'));
-    // A pick that is no longer listed (filtered out or deleted) is dropped
-    compareSelection = compareSelection.filter(id => buttons.some(button => button.dataset.id === id));
+// Same filename, ignoring case: a re-run with different context, or a revised version of the contract.
+function isSameFile(entry, result) {
+    const name = (value) => String(value || '').trim().toLowerCase();
+    return name(entry.filename) !== '' && name(entry.filename) === name(result.filename);
+}
 
-    let comparable = 0;
-    buttons.forEach(button => {
-        const finished = button.dataset.status === 'done';
-        if (finished) comparable++;
-        const slot = compareSelection.indexOf(button.dataset.id);
-        button.disabled = compareMode && !finished;   // only finished analyses can be compared
-        if (compareMode) button.setAttribute('aria-pressed', String(slot >= 0));
-        else button.removeAttribute('aria-pressed');
-        if (slot >= 0) button.dataset.slot = slot === 0 ? 'A' : 'B';
-        else delete button.dataset.slot;
+// "You analysed this file before..." with a one-click comparison against the latest of those.
+function renderCompareSuggestion(result, sameFile) {
+    const latest = sameFile[0];   // the server lists newest first
+    const suggestion = createElement('div', 'notice compare-suggestion');
+    suggestion.appendChild(createElement('span', '', sameFile.length === 1
+        ? `You also analysed this file on ${formatDateTime(latest.timestamp)}.`
+        : `You analysed this file ${sameFile.length} other times, most recently on ${formatDateTime(latest.timestamp)}.`));
+    suggestion.appendChild(actionButton('Compare with that analysis', () => compareWith(result, latest)));
+    return suggestion;
+}
+
+function openComparePicker(result, sameFile, others) {
+    document.getElementById('compare-dialog-text').textContent =
+        `Pick an analysis to compare with ${result.filename || 'this contract'} (${formatDateTime(result.timestamp)}).`;
+    compareDialogList.replaceChildren();
+    const rest = others.filter(entry => !sameFile.includes(entry));
+    if (sameFile.length > 0) appendPickerGroup('Same file', sameFile, result);
+    if (rest.length > 0) appendPickerGroup(sameFile.length > 0 ? 'Other analyses' : '', rest, result);
+    compareDialog.showModal();
+}
+
+function appendPickerGroup(heading, entries, result) {
+    if (heading) compareDialogList.appendChild(createElement('h3', 'picker-heading', heading));
+    entries.forEach(entry => {
+        try {
+            compareDialogList.appendChild(renderPickerItem(entry, result));
+        } catch (error) {
+            console.error('Could not render analysis to compare with:', error, entry);
+        }
+    });
+}
+
+function renderPickerItem(entry, result) {
+    const counts = entry.counts || {};
+    const button = createElement('button', 'history-item');
+    button.type = 'button';
+    button.addEventListener('click', () => {
+        compareDialog.close();
+        compareWith(result, entry);
     });
 
-    compareRunBtn.disabled = compareSelection.length !== 2;
-    if (comparable < 2) compareHint.textContent = 'You need two finished analyses in this list to compare.';
-    else if (compareSelection.length === 2) compareHint.textContent = 'Ready to compare A with B.';
-    else compareHint.textContent = compareSelection.length === 1 ? 'Pick one more analysis.' : 'Pick two analyses.';
+    button.appendChild(createElement('span', 'history-title', entry.filename || 'Contract'));
+    const meta = createElement('span', 'history-meta');
+    meta.appendChild(createElement('span', '', formatDateTime(entry.timestamp)));
+    const dots = createElement('span', 'risk-dots');
+    RISK_LEVELS.forEach(level => {
+        if (counts[level] > 0) dots.appendChild(createElement('span', `risk-dot ${level}`, counts[level]));
+    });
+    if (!dots.childElementCount) dots.appendChild(createElement('span', '', 'No issues found'));
+    meta.appendChild(dots);
+    button.appendChild(meta);
+    if (entry.context) button.appendChild(createElement('span', 'picker-context', entry.context));
+    return button;
+}
+
+// The older analysis is A and the newer one B, so "lower risk in B" reads as a change over time.
+function compareWith(result, other) {
+    const origin = { id: result.id, filename: result.filename, context: result.context };
+    if (isOlder(result, other)) openComparison(result.id, other.id, origin);
+    else openComparison(other.id, result.id, origin);
+}
+
+function isOlder(first, second) {
+    const difference = new Date(first.timestamp) - new Date(second.timestamp);
+    if (difference) return difference < 0;
+    // Same moment (or an unreadable date): ids are handed out in order, as the server's own sorting assumes
+    return String(first.id) <= String(second.id);
 }
 
 // No AI call: the server works out the differences from the two saved analyses.
-async function openComparison(idA, idB) {
+// origin is the analysis the comparison was started from, for the way back.
+async function openComparison(idA, idB, origin) {
     const requestId = ++activeRequestId;
-    lastAction = () => openComparison(idA, idB);
+    lastAction = () => openComparison(idA, idB, origin);
     analysisResult = null;
     removeFile();
     setBusy(false);
@@ -484,13 +540,24 @@ async function openComparison(idA, idB) {
     try {
         const comparison = await fetchJson(
             `/api/compare?a=${encodeURIComponent(idA)}&b=${encodeURIComponent(idB)}`);
-        if (requestId === activeRequestId) showThread({ context: '' }, renderComparison(comparison));
+        if (requestId !== activeRequestId) return;
+        const message = renderComparison(comparison);
+        message.insertBefore(renderCompareToolbar(idA, idB, origin), message.children[1] || null);
+        showThread({ context: '' }, message);
     } catch (error) {
         console.error('Comparing analyses failed:', error);
         if (requestId === activeRequestId) {
             showThread({ context: '' }, renderError({ ...toDisplayError(error), title: 'Could not compare' }));
         }
     }
+}
+
+// Above a comparison: back to the analysis it was started from, and swap which side is A.
+function renderCompareToolbar(idA, idB, origin) {
+    const toolbar = createElement('div', 'compare-toolbar');
+    if (origin) toolbar.appendChild(actionButton('← Back to analysis', () => openSavedAnalysis(origin)));
+    toolbar.appendChild(actionButton('Swap A and B', () => openComparison(idB, idA, origin)));
+    return toolbar;
 }
 
 // ---------- Deleting a saved analysis ----------

@@ -34,23 +34,13 @@
             <div class="sidebar-section">
                 <div class="sidebar-heading">
                     <span>Analyses</span>
-                    <span class="heading-tools">
-                        <button type="button" id="compare-toggle" class="heading-btn" aria-pressed="false">Compare</button>
-                        <select id="history-filter" class="history-filter" aria-label="Filter saved analyses">
-                            <option value="">All</option>
-                            <option value="risk=high">High Risk</option>
-                            <option value="risk=medium">Medium Risk</option>
-                            <option value="risk=low">Low Risk</option>
-                            <option value="status=failed">Failed</option>
-                        </select>
-                    </span>
-                </div>
-                <div id="compare-bar" class="compare-bar" hidden>
-                    <p id="compare-hint" class="compare-hint" aria-live="polite"></p>
-                    <div class="compare-bar-actions">
-                        <button type="button" id="compare-run" class="btn-primary" disabled>Compare</button>
-                        <button type="button" id="compare-cancel" class="btn-ghost">Cancel</button>
-                    </div>
+                    <select id="history-filter" class="history-filter" aria-label="Filter saved analyses">
+                        <option value="">All</option>
+                        <option value="risk=high">High Risk</option>
+                        <option value="risk=medium">Medium Risk</option>
+                        <option value="risk=low">Low Risk</option>
+                        <option value="status=failed">Failed</option>
+                    </select>
                 </div>
                 <p id="history-message" class="history-message" hidden></p>
                 <ul id="history-list" class="history-list"></ul>
@@ -121,6 +111,15 @@
             </div>
         </main>
     </div>
+
+    <dialog id="compare-dialog" class="modal compare-dialog" aria-labelledby="compare-dialog-title" aria-describedby="compare-dialog-text">
+        <h2 id="compare-dialog-title" class="modal-title">Compare with…</h2>
+        <p id="compare-dialog-text" class="modal-text"></p>
+        <div id="compare-dialog-list" class="picker-list"></div>
+        <div class="modal-actions">
+            <button type="button" id="compare-dialog-cancel" class="btn-secondary">Cancel</button>
+        </div>
+    </dialog>
 
     <dialog id="delete-dialog" class="modal" aria-labelledby="delete-title" aria-describedby="delete-description">
         <h2 id="delete-title" class="modal-title">Delete analysis?</h2>
