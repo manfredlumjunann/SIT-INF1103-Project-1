@@ -57,29 +57,32 @@
                 <span class="brand">Clause Analyzer</span>
             </header>
 
-            <div class="content" id="content">
-                <!-- Analyses of the selected user (or of everyone) -->
-                <section class="admin-panel" id="list-view">
+            <!-- Wide screens show both sections side by side; narrower ones show one at a time -->
+            <div class="content admin-content" id="content">
+                <!-- Analyses of the selected user (or of everyone), and the two picked for comparison -->
+                <section class="admin-panel admin-list" id="list-view" aria-label="Analyses">
                     <h1 class="admin-title" id="list-title">All users</h1>
                     <p class="result-meta" id="list-subtitle"></p>
                     <p id="page-error" class="field-error" role="alert" hidden></p>
+
+                    <div class="compare-tray" id="compare-tray">
+                        <div class="compare-slots" id="compare-slots"></div>
+                        <div class="compare-bar-actions">
+                            <button type="button" id="compare-run" class="btn-primary" disabled>Compare</button>
+                            <button type="button" id="compare-clear" class="btn-ghost">Clear</button>
+                        </div>
+                    </div>
+
                     <p id="list-message" class="notice" hidden></p>
                     <ul id="analysis-list" class="analysis-list"></ul>
                 </section>
 
                 <!-- One analysis, or a comparison of two (read-only) -->
-                <section class="admin-panel" id="detail-view" hidden>
+                <section class="admin-panel admin-detail" id="detail-view" aria-label="Selected analysis">
                     <button type="button" id="back-btn" class="btn-ghost">← Back to analyses</button>
+                    <p class="detail-empty" id="detail-empty">Open an analysis to read it here, or pick two and compare them.</p>
                     <div class="admin-thread" id="thread" aria-live="polite"></div>
                 </section>
-
-                <div class="compare-tray" id="compare-tray" hidden>
-                    <div class="compare-slots" id="compare-slots"></div>
-                    <div class="compare-bar-actions">
-                        <button type="button" id="compare-run" class="btn-primary" disabled>Compare</button>
-                        <button type="button" id="compare-clear" class="btn-ghost">Clear</button>
-                    </div>
-                </div>
             </div>
         </main>
     </div>

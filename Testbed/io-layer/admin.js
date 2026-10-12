@@ -7,29 +7,30 @@
 let selectedUser = null;        // the user whose analyses are listed; null means all users
 let listedAnalyses = [];        // what the list currently shows
 let comparePicks = [];          // up to two analyses, in the order picked: A, then B. Kept across users
+let openedAnalysisId = null;    // the analysis shown on the right, so its row can be marked
 let lastAction = null;          // repeats the last failed request when "Try again" is pressed
 let activeRequestId = 0;        // responses from older requests are ignored
 
 // ---------- DOM ----------
 
 const app = document.getElementById('app');
+const content = document.getElementById('content');
 const userList = document.getElementById('user-list');
 const userMessage = document.getElementById('user-message');
-const listView = document.getElementById('list-view');
 const detailView = document.getElementById('detail-view');
+const detailEmpty = document.getElementById('detail-empty');
 const listTitle = document.getElementById('list-title');
 const listSubtitle = document.getElementById('list-subtitle');
 const listMessage = document.getElementById('list-message');
 const analysisList = document.getElementById('analysis-list');
 const thread = document.getElementById('thread');
 const pageError = document.getElementById('page-error');
-const compareTray = document.getElementById('compare-tray');
 const compareSlots = document.getElementById('compare-slots');
 const compareRunBtn = document.getElementById('compare-run');
 
 // ---------- Event wiring ----------
 
-document.getElementById('back-btn').addEventListener('click', showListView);
+document.getElementById('back-btn').addEventListener('click', closeDetail);
 compareRunBtn.addEventListener('click', () => {
     if (comparePicks.length === 2) openComparison(comparePicks[0], comparePicks[1]);
 });
@@ -45,6 +46,7 @@ document.addEventListener('keydown', (event) => {
 });
 document.getElementById('logout-btn').addEventListener('click', logout);
 initThemeToggle('theme-toggle');
+updateCompareUi();   // draws the two empty comparison slots
 
 // ---------- Sidebar: users ----------
 
@@ -95,7 +97,7 @@ function selectUser(user) {
     selectedUser = user;
     markSelectedUser();
     setSidebarOpen(false);
-    showListView();
+    showList();   // whatever is open on the right stays there while browsing another user
     loadAnalyses();
 }
 
@@ -189,16 +191,28 @@ function groupByOwner(entries) {
     return Array.from(groups.values()).sort((a, b) => a.username.localeCompare(b.username));
 }
 
+// A row is two controls side by side: the row itself opens the analysis, and the round
+// marker at its right edge picks it for comparison (it becomes the A or B badge).
 function renderAnalysisRow(entry) {
     const status = STATUS_LABELS[entry.status] ? entry.status : 'processing';
     const counts = entry.counts || {};
+    const filename = entry.filename || 'Contract';
     const slot = comparePicks.findIndex(pick => pick.id === entry.id);
+    const opened = entry.id === openedAnalysisId;
 
-    const row = createElement('li', slot >= 0 ? 'analysis-row picked' : 'analysis-row');
-    const main = createElement('div', 'row-main');
-    main.appendChild(createElement('span', 'row-title', entry.filename || 'Contract'));
+    const row = createElement('li', 'analysis-row');
+    row.classList.toggle('picked', slot >= 0);
+    row.classList.toggle('opened', opened);
 
-    const meta = createElement('div', 'row-meta');
+    const openBtn = createElement('button', 'row-open');
+    openBtn.type = 'button';
+    // Nothing to show until the analysis has finished or failed
+    openBtn.disabled = status === 'processing';
+    if (opened) openBtn.setAttribute('aria-current', 'true');
+    openBtn.addEventListener('click', () => openAnalysis(entry));
+    openBtn.appendChild(createElement('span', 'row-title', filename));
+
+    const meta = createElement('span', 'row-meta');
     meta.appendChild(createElement('span', '', formatDateTime(entry.timestamp)));
     if (status === 'done') {
         const dots = createElement('span', 'risk-dots');
@@ -214,26 +228,27 @@ function renderAnalysisRow(entry) {
     } else {
         meta.appendChild(createElement('span', `status-tag ${status}`, STATUS_LABELS[status]));
     }
-    main.appendChild(meta);
+    openBtn.appendChild(meta);
     if (entry.context) {
-        const context = createElement('p', 'row-context', entry.context);
+        const context = createElement('span', 'row-context', entry.context);
         context.title = entry.context;
-        main.appendChild(context);
+        openBtn.appendChild(context);
     }
-    row.appendChild(main);
+    row.appendChild(openBtn);
 
-    const actions = createElement('div', 'row-actions');
-    const openBtn = actionButton('Open', () => openAnalysis(entry));
-    // Nothing to show until the analysis has finished or failed
-    openBtn.disabled = status === 'processing';
-    actions.appendChild(openBtn);
-
-    const pickBtn = actionButton(slot >= 0 ? `Picked as ${slot === 0 ? 'A' : 'B'}` : 'Compare',
-        () => toggleComparePick(entry));
-    pickBtn.setAttribute('aria-pressed', String(slot >= 0));
-    pickBtn.disabled = status !== 'done';   // only finished analyses can be compared
-    actions.appendChild(pickBtn);
-    row.appendChild(actions);
+    // Only finished analyses can be compared, so the others have no marker
+    if (status === 'done') {
+        const letter = slot === 0 ? 'A' : 'B';
+        const pickBtn = createElement('button', 'row-pick', slot >= 0 ? letter : '');
+        pickBtn.type = 'button';
+        pickBtn.setAttribute('aria-pressed', String(slot >= 0));
+        pickBtn.title = slot >= 0 ? `Picked as ${letter}. Click to remove` : 'Pick for comparison';
+        pickBtn.setAttribute('aria-label', slot >= 0
+            ? `Remove ${filename} from the comparison (picked as ${letter})`
+            : `Pick ${filename} for comparison`);
+        pickBtn.addEventListener('click', () => toggleComparePick(entry));
+        row.appendChild(pickBtn);
+    }
     return row;
 }
 
@@ -242,6 +257,7 @@ function renderAnalysisRow(entry) {
 async function openAnalysis(entry) {
     const requestId = ++activeRequestId;
     lastAction = () => openAnalysis(entry);
+    markOpenedAnalysis(entry.id);
     showDetailView(renderThinking('Opening saved analysis...'));
 
     try {
@@ -270,7 +286,6 @@ function toggleComparePick(entry) {
 
 // Brings the tray and the list's Compare buttons in line with the current picks.
 function updateCompareUi() {
-    compareTray.hidden = comparePicks.length === 0;
     compareRunBtn.disabled = comparePicks.length !== 2;
     compareSlots.replaceChildren(renderCompareSlot('A', comparePicks[0]), renderCompareSlot('B', comparePicks[1]));
     renderAnalysisRows();
@@ -280,7 +295,7 @@ function renderCompareSlot(letter, pick) {
     const slot = createElement('div', pick ? 'compare-slot' : 'compare-slot empty');
     slot.appendChild(createElement('span', 'compare-letter', letter));
     if (!pick) {
-        slot.appendChild(createElement('span', 'compare-slot-text', 'Pick another analysis, from any user'));
+        slot.appendChild(createElement('span', 'compare-slot-text', 'Click the circle on an analysis, from any user'));
         return slot;
     }
     slot.appendChild(createElement('span', 'compare-slot-text',
@@ -299,6 +314,7 @@ function renderCompareSlot(letter, pick) {
 async function openComparison(pickA, pickB) {
     const requestId = ++activeRequestId;
     lastAction = () => openComparison(pickA, pickB);
+    markOpenedAnalysis(null);
     showDetailView(renderThinking('Comparing the two analyses...'));
 
     try {
@@ -313,27 +329,41 @@ async function openComparison(pickA, pickB) {
     }
 }
 
-// ---------- Switching between the list and one analysis / comparison ----------
+// ---------- The list and the opened analysis / comparison ----------
+// Wide screens show both side by side. Narrower ones show one at a time: styles.css uses the
+// "showing-detail" class on the content area to decide which.
 
-function showDetailView(...content) {
-    thread.replaceChildren(...content);
-    listView.hidden = true;
-    detailView.hidden = false;
-    document.getElementById('content').scrollTop = 0;
+function showDetailView(...items) {
+    thread.replaceChildren(...items);
+    detailEmpty.hidden = true;
+    content.classList.add('showing-detail');
+    content.scrollTop = 0;
+    detailView.scrollTop = 0;
 }
 
-function showListView() {
+function showList() {
+    content.classList.remove('showing-detail');
+}
+
+// Empties the right-hand side and goes back to the list.
+function closeDetail() {
     activeRequestId++;   // a still-running request will no longer replace the screen
     lastAction = null;
     thread.replaceChildren();
-    detailView.hidden = true;
-    listView.hidden = false;
+    detailEmpty.hidden = false;
+    markOpenedAnalysis(null);
+    showList();
+}
+
+function markOpenedAnalysis(analysisId) {
+    openedAnalysisId = analysisId;
+    renderAnalysisRows();
 }
 
 function renderError(details) {
     return renderErrorCard(details, [
         ['Try again', () => { if (lastAction) lastAction(); }],
-        ['Back to analyses', showListView]
+        ['Close', closeDetail]
     ]);
 }
 
@@ -378,7 +408,7 @@ async function logout() {
     } catch (error) {
         console.error('Sign out failed:', error);
         logoutBtn.disabled = false;
-        showListView();
+        showList();
         pageError.textContent = 'Could not sign out: the server could not be reached, so you are still signed in. Try again in a moment.';
         pageError.hidden = false;
     }

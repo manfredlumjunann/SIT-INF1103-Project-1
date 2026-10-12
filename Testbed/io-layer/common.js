@@ -435,6 +435,7 @@ function renderComparison(comparison, showOwners = false) {
     const changed = inBoth.filter(pair => pair.risk_change !== 'same').length;
 
     const message = renderAssistantShell();
+    message.classList.add('comparison');   // styles.css gives a comparison the full page width
     const sides = createElement('div', 'compare-sides');
     sides.appendChild(renderCompareSide('A', comparison.a, showOwners));
     sides.appendChild(renderCompareSide('B', comparison.b, showOwners));
@@ -456,10 +457,13 @@ function renderComparison(comparison, showOwners = false) {
     }
 
     message.appendChild(renderCompareSection(`In both (${inBoth.length})`, inBoth.map(renderComparePair)));
-    message.appendChild(renderCompareSection(`Only in A (${onlyA.length})`,
+    // Side by side, under the A and B summaries above
+    const unmatched = createElement('div', 'compare-only');
+    unmatched.appendChild(renderCompareSection(`Only in A (${onlyA.length})`,
         onlyA.map((clause, index) => renderClause(clause, index))));
-    message.appendChild(renderCompareSection(`Only in B (${onlyB.length})`,
+    unmatched.appendChild(renderCompareSection(`Only in B (${onlyB.length})`,
         onlyB.map((clause, index) => renderClause(clause, index))));
+    message.appendChild(unmatched);
     return message;
 }
 
