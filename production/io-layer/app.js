@@ -7,10 +7,6 @@
 // Must match what the backend can parse and nginx/Flask upload limits
 const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.txt'];
 const MAX_FILE_BYTES = 50 * 1024 * 1024;
-// Slightly longer than nginx's 600s proxy timeout so the server's 504 arrives first
-const REQUEST_TIMEOUT_MS = 620 * 1000;
-const RISK_LEVELS = ['high', 'medium', 'low'];
-const STATUS_LABELS = { done: 'Done', failed: 'Failed', processing: 'In progress' };
 const DEFAULT_HINT = 'Attach a contract (PDF, Word or TXT, up to 50 MB), then press ↑ to analyse.';
 const READY_HINT = 'Ready. Add context if you like, then enter ↑ or Enter to analyse.';
 // Shown one after another while waiting, so long analyses still feel alive
@@ -230,8 +226,10 @@ function showResult(result) {
     analysisResult = result;
     const userTurn = { filename: result.filename, context: result.context };
     try {
-        showThread(userTurn, renderResult(result));
+        const message = renderResult(result);
+        showThread(userTurn, message);
         setActiveHistoryItem(result.id);
+        addCompareOptions(result, message);
     } catch (error) {
         console.error('Rendering results failed:', error, result);
         showThread(userTurn, renderError({
@@ -288,146 +286,6 @@ function requestAnalysis(file, contextText) {
     return fetchAnalysisJson('/api/analyze', { method: 'POST', body: formData });
 }
 
-// fetchJson plus a check that the response is an analysis with a clause list.
-async function fetchAnalysisJson(url, options) {
-    const data = await fetchJson(url, options);
-    if (!data || !Array.isArray(data.clauses)) {
-        throw invalidResponseError();
-    }
-    return data;
-}
-
-// Fetches JSON from the backend.
-// Throws an error carrying a user-facing title/message/hint on any failure.
-async function fetchJson(url, options = {}) {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
-
-    try {
-        let response;
-        try {
-            response = await fetch(url, { ...options, signal: controller.signal });
-        } catch (error) {
-            if (error.name === 'AbortError') throw timeoutError();
-            throw appError('Connection problem',
-                'Could not reach the analysis server.',
-                'Check that the application is running and your internet connection is working, then try again.');
-        }
-
-        if (response.status === 401) {
-            // Session expired or signed out in another tab
-            goToLoginPage();
-        }
-        if (!response.ok) {
-            const serverMessage = await readServerError(response);
-            const details = describeHttpError(response.status, serverMessage);
-            throw appError(details.title, details.message, details.hint);
-        }
-
-        try {
-            return await response.json();
-        } catch (error) {
-            if (error.name === 'AbortError') throw timeoutError();
-            throw invalidResponseError();
-        }
-    } finally {
-        clearTimeout(timeoutId);
-    }
-}
-
-// Extracts the backend's {"error": "..."} message; nginx error pages are HTML, so fall back to ''.
-async function readServerError(response) {
-    try {
-        const data = JSON.parse(await response.text());
-        return data && data.error ? String(data.error) : '';
-    } catch (error) {
-        return '';
-    }
-}
-
-function describeHttpError(status, serverMessage) {
-    switch (status) {
-        case 400:
-            return {
-                title: 'Could not analyse this file',
-                message: serverMessage || 'The file could not be processed.',
-                hint: 'Check that the file is a readable PDF, Word or TXT file. Scanned PDFs (images of pages) contain no text to analyse.'
-            };
-        case 401:
-            return {
-                title: 'Signed out',
-                message: 'Your session has ended.',
-                hint: 'Taking you to the login page...'
-            };
-        case 404:
-            return {
-                title: 'Analysis not found',
-                message: serverMessage || 'This saved analysis no longer exists.',
-                hint: 'Refresh the page to reload your saved analyses.'
-            };
-        case 413:
-            return {
-                title: 'File too large',
-                message: 'The contract exceeds the 50 MB upload limit.',
-                hint: 'Try a smaller file, or save the contract as a TXT or Word file.'
-            };
-        case 502:
-            return {
-                title: 'Analysis service unavailable',
-                message: 'The analysis server is not responding.',
-                hint: 'It may still be starting up. Wait a moment and try again.'
-            };
-        case 503:
-            return {
-                title: 'AI service unavailable',
-                message: serverMessage || 'The AI models are currently unavailable.',
-                hint: 'This is usually temporary. Try again in a few minutes.'
-            };
-        case 504:
-            return timeoutDetails();
-        default:
-            return {
-                title: 'Something went wrong',
-                message: serverMessage || `The server returned an unexpected error (HTTP ${status}).`,
-                hint: 'Try again. If it keeps happening, report it to the team with the time it occurred.'
-            };
-    }
-}
-
-function timeoutDetails() {
-    return {
-        title: 'This is taking longer than expected',
-        message: 'No result arrived within 10 minutes.',
-        hint: 'The analysis may still finish in the background. Check Analyses in the sidebar in a few minutes before trying again.'
-    };
-}
-
-function timeoutError() {
-    const details = timeoutDetails();
-    return appError(details.title, details.message, details.hint);
-}
-
-function invalidResponseError() {
-    return appError('Unexpected response',
-        'The server returned a response that could not be read.',
-        'Try again. If it keeps happening, report it to the team with the time it occurred.');
-}
-
-function appError(title, message, hint) {
-    const error = new Error(message);
-    error.title = title;
-    error.hint = hint;
-    return error;
-}
-
-function toDisplayError(error) {
-    return {
-        title: error.title || 'Analysis failed',
-        message: error.message || 'Something went wrong while analysing the contract.',
-        hint: error.hint || 'Try again. If it keeps happening, report it to the team with the time it occurred.'
-    };
-}
-
 // ---------- Thread rendering ----------
 
 // Replaces the conversation with the user's message (if they typed one) and the assistant reply.
@@ -447,22 +305,8 @@ function renderUserMessage({ context }) {
     return wrapper;
 }
 
-function renderAssistantShell() {
-    const message = createElement('div', 'message-assistant');
-    const label = createElement('div', 'assistant-label');
-    label.appendChild(brandMark());
-    label.appendChild(createElement('span', '', 'Clause Analyzer'));
-    message.appendChild(label);
-    return message;
-}
-
 function renderLoading(text = PROGRESS_STEPS[0]) {
-    const message = renderAssistantShell();
-    const thinking = createElement('div', 'thinking');
-    thinking.setAttribute('role', 'status');
-    thinking.appendChild(createElement('span', 'spinner'));
-    thinking.appendChild(createElement('span', 'thinking-text', text));
-    message.appendChild(thinking);
+    const message = renderThinking(text);
     if (text === PROGRESS_STEPS[0]) {
         message.appendChild(createElement('p', 'thinking-note',
             'Analyses usually take a few minutes. You can open a saved analysis meanwhile; this one will appear in the sidebar when it finishes.'));
@@ -471,242 +315,7 @@ function renderLoading(text = PROGRESS_STEPS[0]) {
 }
 
 function renderError(details) {
-    const message = renderAssistantShell();
-    const card = createElement('div', 'error-card');
-    card.setAttribute('role', 'alert');
-    card.appendChild(createElement('h3', '', details.title));
-    card.appendChild(createElement('p', '', details.message));
-    if (details.hint) card.appendChild(createElement('p', 'error-hint', details.hint));
-
-    const actions = createElement('div', 'result-actions');
-    actions.appendChild(actionButton('Try again', retryLastAction));
-    actions.appendChild(actionButton('Start over', startNewAnalysis));
-    card.appendChild(actions);
-    message.appendChild(card);
-    return message;
-}
-
-function renderResult(result) {
-    const message = renderAssistantShell();
-    message.appendChild(renderResultMeta(result));
-
-    const clauses = result.clauses;
-    const counts = { high: 0, medium: 0, low: 0, unrated: 0 };
-    clauses.forEach(clause => {
-        if (clause && typeof clause === 'object') counts[normaliseRisk(clause)]++;
-    });
-
-    if (clauses.length === 0) {
-        message.appendChild(renderNotice(result.message || 'No problematic clauses were detected in this contract.',
-            '', 'If you expected results, try again: the AI occasionally returns a response that cannot be read.'));
-        message.appendChild(renderResultActions(result));
-        return message;
-    }
-
-    const summary = createElement('div', 'summary');
-    summary.appendChild(createElement('span', 'summary-text',
-        `Found ${clauses.length} clause${clauses.length === 1 ? '' : 's'} to review:`));
-    RISK_LEVELS.forEach(level => {
-        summary.appendChild(createElement('span', `pill ${level}`, `${counts[level]} ${level}`));
-    });
-    if (counts.unrated > 0) summary.appendChild(createElement('span', 'pill unrated', `${counts.unrated} unrated`));
-    message.appendChild(summary);
-
-    // Render each clause; a malformed clause is skipped instead of breaking the whole report
-    const list = createElement('div', 'clause-list');
-    let skipped = 0;
-    clauses.forEach((clause, index) => {
-        try {
-            list.appendChild(renderClause(clause, index));
-        } catch (error) {
-            skipped++;
-            console.error(`Could not render clause ${index + 1}:`, error, clause);
-        }
-    });
-
-    const warnings = [];
-    if (counts.unrated > 0) {
-        warnings.push(`${counts.unrated} clause(s) had no valid risk level and are shown as "Unrated".`);
-    }
-    if (skipped > 0) {
-        warnings.push(`${skipped} clause(s) could not be displayed because the AI returned incomplete data.`);
-    }
-    if (warnings.length > 0) message.appendChild(renderNotice(warnings.join(' '), 'warning'));
-
-    message.appendChild(list);
-    message.appendChild(renderResultActions(result));
-    return message;
-}
-
-// "nda.pdf · 29 Sep 2026, 4:45 PM" plus a tag when the result came from the cache.
-function renderResultMeta(result) {
-    const meta = createElement('p', 'result-meta',
-        [result.filename || 'Contract', formatDateTime(result.timestamp)].join(' · '));
-    if (result.cached) {
-        meta.appendChild(createElement('span', 'saved-tag', 'Saved result, no new AI call'));
-    }
-    return meta;
-}
-
-function renderNotice(text, type, hint) {
-    const notice = createElement('div', `notice ${type || ''}`.trim(), text);
-    if (hint) notice.appendChild(createElement('span', 'notice-hint', hint));
-    return notice;
-}
-
-function renderResultActions(result) {
-    const actions = createElement('div', 'result-actions');
-    if (result.clauses.length > 0) {
-        actions.appendChild(actionButton('Export as Markdown', () => exportReport(result, 'markdown')));
-    }
-    actions.appendChild(actionButton('Export as JSON', () => exportReport(result, 'json')));
-    return actions;
-}
-
-// Maps an AI-supplied risk level to high/medium/low, or 'unrated' if missing or unrecognised.
-function normaliseRisk(clause) {
-    const level = String((clause && clause.risk_level) || '').trim().toLowerCase();
-    return RISK_LEVELS.includes(level) ? level : 'unrated';
-}
-
-function renderClause(clause, index) {
-    if (!clause || typeof clause !== 'object') {
-        throw new Error('Clause is not an object');
-    }
-    const risk = normaliseRisk(clause);
-    const card = createElement('article', `clause-card ${risk}`);
-
-    const header = createElement('div', 'clause-header');
-    const titleBlock = createElement('div');
-    titleBlock.appendChild(createElement('span', 'clause-type', `${index + 1}. ${clause.clause_type || 'Unnamed clause'}`));
-    if (clause.line_number) titleBlock.appendChild(createElement('span', 'clause-location', clause.line_number));
-    header.appendChild(titleBlock);
-    header.appendChild(createElement('span', `pill ${risk}`, risk === 'unrated' ? 'Unrated' : `${risk} risk`));
-    card.appendChild(header);
-
-    if (clause.clause_text) card.appendChild(createElement('blockquote', 'clause-text', clause.clause_text));
-    if (clause.issue_description) card.appendChild(renderClauseSection('Why it matters', clause.issue_description));
-    card.appendChild(renderClauseSection('Suggested workaround',
-        clause.workaround || 'No workaround was provided. Consider consulting legal counsel.'));
-
-    const references = Array.isArray(clause.legal_references)
-        ? clause.legal_references.filter(ref => ref && typeof ref === 'object')
-        : [];
-    if (references.length > 0) {
-        const details = createElement('details', 'references');
-        details.appendChild(createElement('summary', '',
-            `${references.length} legal reference${references.length === 1 ? '' : 's'}`));
-        references.forEach(ref => details.appendChild(renderReference(ref)));
-        card.appendChild(details);
-    }
-    return card;
-}
-
-function renderClauseSection(heading, text) {
-    const section = createElement('div', 'clause-section');
-    section.appendChild(createElement('h4', '', heading));
-    section.appendChild(createElement('p', '', text));
-    return section;
-}
-
-function renderReference(ref) {
-    const item = createElement('div', 'reference-item');
-    const title = String(ref.title || ref.url || 'Untitled source');
-    const href = safeUrl(ref.url);
-
-    if (href) {
-        const link = createElement('a', '', title);
-        link.href = href;
-        link.target = '_blank';
-        link.rel = 'noopener noreferrer';
-        item.appendChild(link);
-    } else {
-        item.appendChild(createElement('span', 'reference-title', title));
-    }
-    if (ref.domain) item.appendChild(createElement('span', 'reference-domain', ref.domain));
-
-    const summary = String(ref.summary || '');
-    if (summary) {
-        const shortened = summary.length > 240 ? `${summary.substring(0, 240)}...` : summary;
-        item.appendChild(createElement('p', 'reference-summary', shortened));
-    }
-    return item;
-}
-
-// Only http(s) links are allowed; anything else (e.g. javascript: URLs) is shown as plain text.
-function safeUrl(url) {
-    try {
-        const parsed = new URL(String(url || ''));
-        return parsed.protocol === 'http:' || parsed.protocol === 'https:' ? parsed.href : null;
-    } catch (error) {
-        return null;
-    }
-}
-
-function createElement(tag, className, text) {
-    const element = document.createElement(tag);
-    if (className) element.className = className;
-    if (text !== undefined) element.textContent = String(text);
-    return element;
-}
-
-function actionButton(label, onClick) {
-    const button = createElement('button', 'btn-ghost', label);
-    button.type = 'button';
-    button.addEventListener('click', onClick);
-    return button;
-}
-
-// The logo, built with DOM methods so no HTML string is parsed
-function brandMark() {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('class', 'brand-mark');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('aria-hidden', 'true');
-    const fill = document.createElementNS(ns, 'path');
-    fill.setAttribute('d', 'M6 3h8l4 4v14H6z');
-    fill.setAttribute('fill', 'currentColor');
-    fill.setAttribute('opacity', '0.25');
-    const outline = document.createElementNS(ns, 'path');
-    outline.setAttribute('d', 'M6 3h8l4 4v14H6zM14 3v4h4M9 12h6M9 16h4');
-    outline.setAttribute('stroke', 'currentColor');
-    outline.setAttribute('stroke-width', '1.8');
-    outline.setAttribute('stroke-linejoin', 'round');
-    outline.setAttribute('stroke-linecap', 'round');
-    svg.append(fill, outline);
-    return svg;
-}
-
-function closeIcon() {
-    const ns = 'http://www.w3.org/2000/svg';
-    const svg = document.createElementNS(ns, 'svg');
-    svg.setAttribute('class', 'icon');
-    svg.setAttribute('viewBox', '0 0 24 24');
-    svg.setAttribute('fill', 'none');
-    svg.setAttribute('aria-hidden', 'true');
-    const path = document.createElementNS(ns, 'path');
-    path.setAttribute('d', 'M6 6l12 12M18 6L6 18');
-    path.setAttribute('stroke', 'currentColor');
-    path.setAttribute('stroke-width', '2');
-    path.setAttribute('stroke-linecap', 'round');
-    svg.appendChild(path);
-    return svg;
-}
-
-function formatDateTime(timestamp) {
-    const date = new Date(timestamp);
-    return Number.isNaN(date.getTime())
-        ? 'Unknown date'
-        : date.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
-}
-
-function formatShortDate(timestamp) {
-    const date = new Date(timestamp);
-    return Number.isNaN(date.getTime())
-        ? ''
-        : date.toLocaleDateString(undefined, { day: 'numeric', month: 'short' });
+    return renderErrorCard(details, [['Try again', retryLastAction], ['Start over', startNewAnalysis]]);
 }
 
 // ---------- Sidebar: saved analyses ----------
@@ -795,6 +404,162 @@ function renderHistoryItem(entry) {
     return item;
 }
 
+// ---------- Comparing two analyses ----------
+// Comparison starts from the analysis on screen: a "Compare with..." button under it lists the
+// user's other finished analyses, and an earlier analysis of the same file is offered directly.
+
+const compareDialog = document.getElementById('compare-dialog');
+const compareDialogList = document.getElementById('compare-dialog-list');
+
+document.getElementById('compare-dialog-cancel').addEventListener('click', () => compareDialog.close());
+// Clicking the dimmed backdrop (outside the box) cancels, like Esc does
+compareDialog.addEventListener('click', (event) => {
+    if (event.target === compareDialog) compareDialog.close();
+});
+
+// Adds the compare options to a displayed result once the user's other analyses are known.
+// Failing to load them only means the options are not offered.
+async function addCompareOptions(result, message) {
+    if (result.status !== 'done') return;   // only finished analyses can be compared
+    let others;
+    try {
+        const data = await fetchJson('/api/analyses?status=done');
+        const entries = Array.isArray(data && data.analyses) ? data.analyses : [];
+        others = entries.filter(entry => entry.id !== result.id);
+    } catch (error) {
+        console.error('Loading analyses to compare with failed:', error);
+        return;
+    }
+    // Another analysis may be on screen by the time the list arrives
+    if (analysisResult !== result || !message.isConnected || others.length === 0) return;
+
+    const sameFile = others.filter(entry => isSameFile(entry, result));
+    // The picker would only repeat the suggestion when the one other analysis is of the same file
+    if (others.length > sameFile.length || sameFile.length > 1) {
+        const pickerBtn = actionButton(sameFile.length > 0 ? 'Compare with another…' : 'Compare with…',
+            () => openComparePicker(result, sameFile, others));
+        pickerBtn.classList.add('compare-open');
+        // At the right end of the "Found N clauses" row, so it is seen without scrolling.
+        // An analysis with no clauses has no such row; there it joins the export buttons.
+        const home = message.querySelector('.summary') || message.querySelector('.result-actions');
+        if (home) home.appendChild(pickerBtn);
+    }
+    if (sameFile.length > 0) {
+        const meta = message.querySelector('.result-meta');
+        meta.insertAdjacentElement('afterend', renderCompareSuggestion(result, sameFile));
+    }
+}
+
+// Same filename, ignoring case: a re-run with different context, or a revised version of the contract.
+function isSameFile(entry, result) {
+    const name = (value) => String(value || '').trim().toLowerCase();
+    return name(entry.filename) !== '' && name(entry.filename) === name(result.filename);
+}
+
+// "You analysed this file before..." with a one-click comparison against the latest of those.
+function renderCompareSuggestion(result, sameFile) {
+    const latest = sameFile[0];   // the server lists newest first
+    const suggestion = createElement('div', 'notice compare-suggestion');
+    suggestion.appendChild(createElement('span', '', sameFile.length === 1
+        ? `You also analysed this file on ${formatDateTime(latest.timestamp)}.`
+        : `You analysed this file ${sameFile.length} other times, most recently on ${formatDateTime(latest.timestamp)}.`));
+    suggestion.appendChild(actionButton('Compare with that analysis', () => compareWith(result, latest)));
+    return suggestion;
+}
+
+function openComparePicker(result, sameFile, others) {
+    document.getElementById('compare-dialog-text').textContent =
+        `Pick an analysis to compare with ${result.filename || 'this contract'} (${formatDateTime(result.timestamp)}).`;
+    compareDialogList.replaceChildren();
+    const rest = others.filter(entry => !sameFile.includes(entry));
+    if (sameFile.length > 0) appendPickerGroup('Same file', sameFile, result);
+    if (rest.length > 0) appendPickerGroup(sameFile.length > 0 ? 'Other analyses' : '', rest, result);
+    compareDialog.showModal();
+}
+
+function appendPickerGroup(heading, entries, result) {
+    if (heading) compareDialogList.appendChild(createElement('h3', 'picker-heading', heading));
+    entries.forEach(entry => {
+        try {
+            compareDialogList.appendChild(renderPickerItem(entry, result));
+        } catch (error) {
+            console.error('Could not render analysis to compare with:', error, entry);
+        }
+    });
+}
+
+function renderPickerItem(entry, result) {
+    const counts = entry.counts || {};
+    const button = createElement('button', 'history-item');
+    button.type = 'button';
+    button.addEventListener('click', () => {
+        compareDialog.close();
+        compareWith(result, entry);
+    });
+
+    button.appendChild(createElement('span', 'history-title', entry.filename || 'Contract'));
+    const meta = createElement('span', 'history-meta');
+    meta.appendChild(createElement('span', '', formatDateTime(entry.timestamp)));
+    const dots = createElement('span', 'risk-dots');
+    RISK_LEVELS.forEach(level => {
+        if (counts[level] > 0) dots.appendChild(createElement('span', `risk-dot ${level}`, counts[level]));
+    });
+    if (!dots.childElementCount) dots.appendChild(createElement('span', '', 'No issues found'));
+    meta.appendChild(dots);
+    button.appendChild(meta);
+    if (entry.context) button.appendChild(createElement('span', 'picker-context', entry.context));
+    return button;
+}
+
+// The older analysis is A and the newer one B, so "lower risk in B" reads as a change over time.
+function compareWith(result, other) {
+    const origin = { id: result.id, filename: result.filename, context: result.context };
+    if (isOlder(result, other)) openComparison(result.id, other.id, origin);
+    else openComparison(other.id, result.id, origin);
+}
+
+function isOlder(first, second) {
+    const difference = new Date(first.timestamp) - new Date(second.timestamp);
+    if (difference) return difference < 0;
+    // Same moment (or an unreadable date): ids are handed out in order, as the server's own sorting assumes
+    return String(first.id) <= String(second.id);
+}
+
+// No AI call: the server works out the differences from the two saved analyses.
+// origin is the analysis the comparison was started from, for the way back.
+async function openComparison(idA, idB, origin) {
+    const requestId = ++activeRequestId;
+    lastAction = () => openComparison(idA, idB, origin);
+    analysisResult = null;
+    removeFile();
+    setBusy(false);
+    setSidebarOpen(false);
+    setActiveHistoryItem(null);
+    showThread({ context: '' }, renderLoading('Comparing the two analyses...'));
+
+    try {
+        const comparison = await fetchJson(
+            `/api/compare?a=${encodeURIComponent(idA)}&b=${encodeURIComponent(idB)}`);
+        if (requestId !== activeRequestId) return;
+        const message = renderComparison(comparison);
+        message.insertBefore(renderCompareToolbar(idA, idB, origin), message.children[1] || null);
+        showThread({ context: '' }, message);
+    } catch (error) {
+        console.error('Comparing analyses failed:', error);
+        if (requestId === activeRequestId) {
+            showThread({ context: '' }, renderError({ ...toDisplayError(error), title: 'Could not compare' }));
+        }
+    }
+}
+
+// Above a comparison: back to the analysis it was started from, and swap which side is A.
+function renderCompareToolbar(idA, idB, origin) {
+    const toolbar = createElement('div', 'compare-toolbar');
+    if (origin) toolbar.appendChild(actionButton('← Back to analysis', () => openSavedAnalysis(origin)));
+    toolbar.appendChild(actionButton('Swap A and B', () => openComparison(idB, idA, origin)));
+    return toolbar;
+}
+
 // ---------- Deleting a saved analysis ----------
 
 const deleteDialog = document.getElementById('delete-dialog');
@@ -861,62 +626,6 @@ function setSidebarOpen(open) {
     app.classList.toggle('sidebar-open', open);
 }
 
-// ---------- Export ----------
-
-function exportReport(result, format) {
-    const baseName = exportBaseName(result.filename);
-    const content = format === 'json' ? JSON.stringify(result, null, 2) : generateMarkdown(result);
-    const filename = `${baseName}-analysis.${format === 'json' ? 'json' : 'md'}`;
-    const mimeType = format === 'json' ? 'application/json' : 'text/markdown';
-
-    const url = URL.createObjectURL(new Blob([content], { type: mimeType }));
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    URL.revokeObjectURL(url);
-}
-
-// "Supplier Agreement.pdf" -> "supplier-agreement"
-function exportBaseName(filename) {
-    const withoutExtension = String(filename || 'contract').replace(/\.[^.]+$/, '');
-    const slug = withoutExtension.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-    return slug || 'contract';
-}
-
-function generateMarkdown(result) {
-    const text = (value, fallback = 'Not provided') => String(value || fallback);
-    let md = `# Contract Clause Analysis: ${text(result.filename, 'Contract')}\n\n`;
-    md += `**Analysed:** ${formatDateTime(result.timestamp)}\n\n`;
-    if (result.context) md += `**Context:** ${result.context}\n\n`;
-    md += `**Flagged clauses:** ${result.clauses.length}\n\n---\n\n`;
-
-    result.clauses.forEach((clause, i) => {
-        if (!clause || typeof clause !== 'object') return;
-        md += `## ${i + 1}. ${text(clause.clause_type, 'Unnamed clause')} [${normaliseRisk(clause).toUpperCase()}]\n\n`;
-        if (clause.line_number) md += `*${clause.line_number}*\n\n`;
-        md += `> ${text(clause.clause_text)}\n\n`;
-        md += `**Why it matters:** ${text(clause.issue_description)}\n\n`;
-        md += `**Suggested workaround:** ${text(clause.workaround)}\n\n`;
-
-        const references = Array.isArray(clause.legal_references) ? clause.legal_references : [];
-        if (references.length > 0) {
-            md += `**Legal references:**\n`;
-            references.forEach(ref => {
-                if (!ref) return;
-                const href = safeUrl(ref.url);
-                md += href ? `- [${text(ref.title, href)}](${href})\n` : `- ${text(ref.title)}\n`;
-                if (ref.summary) md += `  ${ref.summary}\n`;
-            });
-            md += '\n';
-        }
-        md += '---\n\n';
-    });
-    return md;
-}
-
 // ---------- Sign-in state ----------
 
 // Only signed-in users may use the main page; everyone else goes to the login page.
@@ -928,6 +637,11 @@ async function initPage() {
             return;
         }
         const data = await response.json();
+        if (data && data.user && data.user.role === 'admin') {
+            // Admins have their own page
+            window.location.replace('/admin_index.html');
+            return;
+        }
         showSignedInUser(data && data.user);
     } catch (error) {
         console.error('Checking sign-in failed:', error);
@@ -941,10 +655,6 @@ function showSignedInUser(user) {
     document.getElementById('user-name').textContent = username;
     document.getElementById('user-avatar').textContent = username ? username.charAt(0) : '?';
     document.getElementById('greeting-text').textContent = username ? `What would you like to review?, ${username}` : 'Welcome back';
-}
-
-function goToLoginPage() {
-    window.location.replace('/login.html');
 }
 
 async function logout() {

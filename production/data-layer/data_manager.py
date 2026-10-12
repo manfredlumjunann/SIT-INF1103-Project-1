@@ -265,6 +265,13 @@ def find_user_by_username(username: str) -> Optional[Record]:
                 return copy.deepcopy(user)
     return None
 
+
+def list_users() -> List[Record]:
+    """Every user, ordered by username."""
+    with _lock:
+        _ensure_loaded()
+        return [copy.deepcopy(u) for u in sorted(_store['users'], key=lambda u: u['username'])]
+
 # Analyses and clauses
 
 def compute_contract_hash(contract_text: str, context: str = '') -> str:

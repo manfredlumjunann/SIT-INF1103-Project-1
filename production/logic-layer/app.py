@@ -18,6 +18,8 @@ import functools
 import logging
 import secrets
 
+import requests
+
 from flask import Flask, request, jsonify, session, g
 from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -70,6 +72,70 @@ app.config.update(
 VALID_RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
 
 
+def send_telegram_notification(total_flagged: int, user_id: str, clauses: List[Dict]) -> None:
+    """Send Telegram notification when flagged clauses exceed thresholds."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping notification")
+        return
+
+    high_risk = sum(1 for clause in clauses if clause.get('risk_level') == 'HIGH')
+    medium_risk = sum(1 for clause in clauses if clause.get('risk_level') == 'MEDIUM')
+    low_risk = sum(1 for clause in clauses if clause.get('risk_level') == 'LOW')
+    user = get_session_user()
+    user_name = user['username'] if user else 'Unknown'
+
+    don_id = "667740965"
+    man_id = "1116849976"
+    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    if total_flagged > 8:
+        chat_id = man_id
+    elif total_flagged > 6:
+        chat_id = don_id
+    else:
+        return
+
+    payload = {
+        "chat_id": chat_id,
+        "text": (
+            "Contract clause analysis completed\n"
+            f"User ID: {user_id}\n"
+            f"Username: {user_name}\n"
+            f"Total clause flagged: {total_flagged}\n"
+            f"High risk: {high_risk}\n"
+            f"Medium Risk: {medium_risk}\n"
+            f"Low risk: {low_risk}"
+        )
+    }
+    try:
+        results = requests.get(url_req, params=payload, timeout=10)
+        logger.info("Telegram notification sent: %s", results.json())
+    except Exception as exc:
+        logger.error("Failed to send Telegram notification: %s", exc)
+
+
+def send_telegram_error_notification(error_message: str) -> None:
+    """Send AI error notifications to the INF group chat."""
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping error notification")
+        return
+
+    inf_group_id = "-5212170665"
+    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
+
+    payload = {
+        "chat_id": inf_group_id,
+        "text": f"⚠️ AI Processing Error\n\n{error_message}"
+    }
+    try:
+        results = requests.get(url_req, params=payload, timeout=10)
+        logger.info("Telegram error notification sent: %s", results.json())
+    except Exception as exc:
+        logger.error("Failed to send Telegram error notification: %s", exc)
+
+
 def init_data_layer() -> None:
     """Load all saved records and mark analyses that were interrupted by a restart as failed."""
     counts = data_manager.init_storage()
@@ -90,6 +156,19 @@ def login_required(view):
         if user is None:
             return jsonify({'error': 'Please sign in to continue.'}), 401
         g.user_id = user['id']
+        g.user_role = user['role']
+        return view(*args, **kwargs)
+    return wrapper
+
+
+def admin_required(view):
+    """Signed in as an admin. Everyone else gets 403, so admin data is protected by the
+    server and not by which page the browser happens to load."""
+    @functools.wraps(view)
+    @login_required
+    def wrapper(*args, **kwargs):
+        if not current_user_is_admin():
+            return jsonify({'error': 'This area is for administrators only.'}), 403
         return view(*args, **kwargs)
     return wrapper
 
@@ -99,11 +178,47 @@ def get_current_user_id() -> str:
     return g.user_id
 
 
+def current_user_is_admin() -> bool:
+    """Only valid inside routes decorated with @login_required."""
+    return g.user_role == 'admin'
+
+
 # Authentication
 
 MIN_PASSWORD_LENGTH = 8
 USERNAME_RULES_MESSAGE = "Username must be 3-30 characters using letters, numbers, '.', '_' or '-'."
 LOGIN_FAILED_MESSAGE = 'Incorrect username or password.'
+
+
+def seed_admin_user() -> None:
+    """Create the admin account named by ADMIN_USERNAME / ADMIN_PASSWORD in .env, if it does
+    not exist yet. Registration only ever creates customers, so this is how an admin is made."""
+    username = (os.getenv('ADMIN_USERNAME') or '').strip().lower()
+    password = os.getenv('ADMIN_PASSWORD') or ''
+    if not username and not password:
+        return
+    if not username or len(password) < MIN_PASSWORD_LENGTH:
+        logger.warning("Admin account not created: set both ADMIN_USERNAME and an ADMIN_PASSWORD "
+                       "of at least %d characters in .env", MIN_PASSWORD_LENGTH)
+        return
+
+    existing = data_manager.find_user_by_username(username)
+    if existing is not None:
+        if existing['role'] != 'admin':
+            # Never change an existing account's role or password from here
+            logger.warning("ADMIN_USERNAME '%s' already belongs to a %s account; it was left unchanged",
+                           username, existing['role'])
+        return
+
+    try:
+        data_manager.create_user(username, generate_password_hash(password), role='admin')
+    except ValueError as e:
+        logger.warning("Admin account not created: %s", e)
+        return
+    logger.info("Created admin account '%s'", username)
+
+
+seed_admin_user()
 
 
 def public_user(user: Dict) -> Dict:
@@ -229,10 +344,30 @@ def get_openrouter_client() -> OpenAI:
     )
 
 
+def _classify_ai_error(error: Exception) -> str:
+    """Classify AI error into a user-friendly category for Telegram notifications."""
+    error_str = str(error).lower()
+    
+    if 'context_length' in error_str or 'maximum context' in error_str or 'too long' in error_str:
+        return 'Context length exceeded - document too large for AI processing'
+    if 'rate_limit' in error_str or '429' in error_str or 'quota' in error_str:
+        return 'Rate limit exceeded - too many requests'
+    if '404' in error_str or 'not found' in error_str:
+        return 'AI model unavailable'
+    if 'timeout' in error_str or 'timed out' in error_str:
+        return 'AI request timed out'
+    if 'authentication' in error_str or '401' in error_str or '403' in error_str:
+        return 'AI authentication failed'
+    if 'invalid' in error_str or 'malformed' in error_str:
+        return 'Invalid request to AI service'
+    return f'AI processing error: {str(error)[:200]}'
+
+
 def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
     """
     Call AI with automatic failover through available models.
     Skips unavailable models (404) immediately and tries next.
+    Sends Telegram notification on critical errors.
     Returns response text or raises exception if all models fail.
     """
     client = get_openrouter_client()
@@ -241,6 +376,7 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
     models_to_try = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
     
     last_error = None
+    error_category = None
     for model in models_to_try:
         for attempt in range(max_retries):
             try:
@@ -258,12 +394,17 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
             except Exception as e:
                 error_str = str(e)
                 last_error = e
+                error_category = _classify_ai_error(e)
                 # Skip 404 (model unavailable) immediately - no retry
                 if '404' in error_str or 'unavailable' in error_str.lower():
                     print(f"  ⏭ Model {model} unavailable (404), skipping...")
                     break  # Break inner retry loop, try next model
                 print(f"  ✗ Failed with {model}: {error_str[:100]}")
                 continue
+    
+    # Send Telegram notification for AI failures
+    if error_category:
+        send_telegram_error_notification(error_category)
     
     raise RuntimeError(
         f"All AI models are currently unavailable. Last error: {last_error}. "
@@ -484,6 +625,7 @@ def analyze_and_save(owner_id: str, filename: str, contract_text: str, context: 
     try:
         clauses = run_analysis_pipeline(contract_text, context)
         saved = data_manager.complete_analysis(analysis['id'], clauses)
+        send_telegram_notification(len(clauses), owner_id, clauses)
     except Exception:
         try:
             data_manager.fail_analysis(analysis['id'])
@@ -510,12 +652,7 @@ def analysis_error_response(error: Exception):
 
 def analysis_response(analysis: Dict, cached_result: bool = False) -> Dict:
     """Full saved analysis in the shape the frontend renders."""
-    clauses = []
-    for clause in analysis['clauses']:
-        view = {key: value for key, value in clause.items() if key != 'references'}
-        view['legal_references'] = data_manager.resolve_references(clause)
-        view['line_number'] = clause['location']['raw']
-        clauses.append(view)
+    clauses = [clause_view(clause) for clause in analysis['clauses']]
 
     response = {
         'id': analysis['id'],
@@ -533,6 +670,14 @@ def analysis_response(analysis: Dict, cached_result: bool = False) -> Dict:
                                if analysis['status'] == 'failed'
                                else 'No problematic clauses detected')
     return response
+
+
+def clause_view(clause: Dict) -> Dict:
+    """One stored clause in the shape the frontend renders."""
+    view = {key: value for key, value in clause.items() if key != 'references'}
+    view['legal_references'] = data_manager.resolve_references(clause)
+    view['line_number'] = clause['location']['raw']
+    return view
 
 
 def analysis_summary(analysis: Dict) -> Dict:
@@ -556,6 +701,13 @@ def get_owned_analysis(analysis_id: str) -> Optional[Dict]:
     return analysis
 
 
+def get_readable_analysis(analysis_id: str) -> Optional[Dict]:
+    """The analysis if the current user may view it: their own, or any analysis for an admin."""
+    if current_user_is_admin():
+        return data_manager.get_analysis(analysis_id)
+    return get_owned_analysis(analysis_id)
+
+
 @app.route('/api/analyses', methods=['GET'])
 @login_required
 def list_saved_analyses():
@@ -575,7 +727,7 @@ def list_saved_analyses():
 @login_required
 def get_saved_analysis(analysis_id):
     """Reopen a saved analysis without calling the AI."""
-    analysis = get_owned_analysis(analysis_id)
+    analysis = get_readable_analysis(analysis_id)
     if analysis is None:
         return jsonify({'error': 'Analysis not found'}), 404
     return jsonify(analysis_response(analysis))
@@ -593,6 +745,146 @@ def delete_saved_analysis(analysis_id):
         return jsonify({'error': 'This analysis is still in progress. Try again once it has finished.'}), 409
     data_manager.delete_analysis(analysis_id)
     return jsonify({'deleted': analysis_id})
+
+
+# Comparing two analyses
+
+RISK_RANK = {'LOW': 1, 'MEDIUM': 2, 'HIGH': 3}
+# Tried in this order: the same quoted text is a surer sign of the same clause than the same name
+CLAUSE_MATCH_FIELDS = ('clause_text', 'clause_type')
+
+
+def clause_match_key(clause: Dict, field: str) -> str:
+    """Lowercase with single spaces, so case and line wrapping do not prevent a match."""
+    return ' '.join(str(clause.get(field) or '').lower().split())
+
+
+def match_clauses(clauses_a: List[Dict], clauses_b: List[Dict]) -> Dict[str, List]:
+    """Pair up the clauses of two analyses without calling the AI, so the same two analyses
+    always give the same comparison. Each clause is used at most once; when a key appears
+    several times, clauses pair up in the order they were flagged."""
+    pairs = []
+    left_a = list(range(len(clauses_a)))
+    left_b = list(range(len(clauses_b)))
+
+    for field in CLAUSE_MATCH_FIELDS:
+        waiting: Dict[str, List[int]] = {}
+        for index_b in left_b:
+            key = clause_match_key(clauses_b[index_b], field)
+            if key:
+                waiting.setdefault(key, []).append(index_b)
+
+        unmatched_a = []
+        matched_b = set()
+        for index_a in left_a:
+            candidates = waiting.get(clause_match_key(clauses_a[index_a], field))
+            if candidates:
+                index_b = candidates.pop(0)
+                matched_b.add(index_b)
+                pairs.append((index_a, index_b, field))
+            else:
+                unmatched_a.append(index_a)
+        left_a = unmatched_a
+        left_b = [index_b for index_b in left_b if index_b not in matched_b]
+
+    pairs.sort()
+    return {'pairs': pairs, 'only_a': left_a, 'only_b': left_b}
+
+
+def risk_change(clause_a: Dict, clause_b: Dict) -> str:
+    """How the risk in B compares with A: 'higher', 'lower' or 'same'."""
+    difference = RISK_RANK.get(clause_b['risk_level'], 0) - RISK_RANK.get(clause_a['risk_level'], 0)
+    if difference == 0:
+        return 'same'
+    return 'higher' if difference > 0 else 'lower'
+
+
+def comparison_response(analysis_a: Dict, analysis_b: Dict) -> Dict:
+    clauses_a = analysis_a['clauses']
+    clauses_b = analysis_b['clauses']
+    matched = match_clauses(clauses_a, clauses_b)
+
+    usernames = {}
+    sides = {}
+    for side, analysis in (('a', analysis_a), ('b', analysis_b)):
+        owner_id = analysis['owner_id']
+        if owner_id not in usernames:
+            owner = data_manager.get_user(owner_id)
+            usernames[owner_id] = owner['username'] if owner else 'Deleted user'
+        sides[side] = analysis_summary(analysis)
+        sides[side]['owner_username'] = usernames[owner_id]
+
+    return {
+        'a': sides['a'],
+        'b': sides['b'],
+        'same_contract': analysis_a['contract_text'] == analysis_b['contract_text'],
+        'in_both': [{
+            'a': clause_view(clauses_a[index_a]),
+            'b': clause_view(clauses_b[index_b]),
+            'matched_on': 'text' if field == 'clause_text' else 'type',
+            'risk_change': risk_change(clauses_a[index_a], clauses_b[index_b]),
+        } for index_a, index_b, field in matched['pairs']],
+        'only_a': [clause_view(clauses_a[index]) for index in matched['only_a']],
+        'only_b': [clause_view(clauses_b[index]) for index in matched['only_b']],
+    }
+
+
+@app.route('/api/compare', methods=['GET'])
+@login_required
+def compare_analyses():
+    """Compare two finished analyses: ?a=<id>&b=<id>. Customers can compare their own;
+    an admin can compare any two, including analyses of different users."""
+    id_a = request.args.get('a') or ''
+    id_b = request.args.get('b') or ''
+    if not id_a or not id_b:
+        return jsonify({'error': 'Choose two analyses to compare.'}), 400
+    if id_a == id_b:
+        return jsonify({'error': 'Choose two different analyses to compare.'}), 400
+
+    analysis_a = get_readable_analysis(id_a)
+    analysis_b = get_readable_analysis(id_b)
+    if analysis_a is None or analysis_b is None:
+        return jsonify({'error': 'Analysis not found'}), 404
+    if analysis_a['status'] != 'done' or analysis_b['status'] != 'done':
+        return jsonify({'error': 'Only finished analyses can be compared.'}), 409
+    return jsonify(comparison_response(analysis_a, analysis_b))
+
+
+# Admin: read-only view of every user's analyses
+
+@app.route('/api/admin/users', methods=['GET'])
+@admin_required
+def list_all_users():
+    """Every account with how many analyses it has saved."""
+    analysis_counts: Dict[str, int] = {}
+    for analysis in data_manager.list_analyses():
+        analysis_counts[analysis['owner_id']] = analysis_counts.get(analysis['owner_id'], 0) + 1
+
+    users = []
+    for user in data_manager.list_users():
+        entry = public_user(user)
+        entry['created_at'] = user['created_at']
+        entry['analysis_count'] = analysis_counts.get(user['id'], 0)
+        users.append(entry)
+    return jsonify({'users': users})
+
+
+@app.route('/api/admin/analyses', methods=['GET'])
+@admin_required
+def list_all_analyses():
+    """Analyses of one user (?user=<id>) or of everyone, newest first, labelled with their owner."""
+    owner_id = request.args.get('user') or None
+    if owner_id is not None and data_manager.get_user(owner_id) is None:
+        return jsonify({'error': 'User not found'}), 404
+
+    usernames = {user['id']: user['username'] for user in data_manager.list_users()}
+    analyses = []
+    for analysis in data_manager.list_analyses(owner_id=owner_id):
+        entry = analysis_summary(analysis)
+        entry['owner_id'] = analysis['owner_id']
+        entry['owner_username'] = usernames.get(analysis['owner_id'], 'Deleted user')
+        analyses.append(entry)
+    return jsonify({'analyses': analyses})
 
 
 @app.route('/api/health', methods=['GET'])

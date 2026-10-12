@@ -89,7 +89,7 @@ def send_telegram_notification(total_flagged: int, user_id: str, clauses: List[D
     man_id = "1116849976"
     url_req = f"https://api.telegram.org/bot{token}/sendMessage"
 
-    if total_flagged > 11:
+    if total_flagged > 8:
         chat_id = man_id
     elif total_flagged > 6:
         chat_id = don_id
