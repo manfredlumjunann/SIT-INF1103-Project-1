@@ -421,23 +421,23 @@ compareDialog.addEventListener('click', (event) => {
 // Failing to load them only means the options are not offered.
 async function addCompareOptions(result, message) {
     if (result.status !== 'done') return;   // only finished analyses can be compared
-    let others;
+    let sameFile;
+    let rest;
     try {
-        const data = await fetchJson('/api/analyses?status=done');
-        const entries = Array.isArray(data && data.analyses) ? data.analyses : [];
-        others = entries.filter(entry => entry.id !== result.id);
+        const data = await fetchJson(`/api/analyses/${encodeURIComponent(result.id)}/compare-options`);
+        sameFile = Array.isArray(data && data.same_file) ? data.same_file : [];
+        rest = Array.isArray(data && data.others) ? data.others : [];
     } catch (error) {
         console.error('Loading analyses to compare with failed:', error);
         return;
     }
     // Another analysis may be on screen by the time the list arrives
-    if (analysisResult !== result || !message.isConnected || others.length === 0) return;
+    if (analysisResult !== result || !message.isConnected || sameFile.length + rest.length === 0) return;
 
-    const sameFile = others.filter(entry => isSameFile(entry, result));
     // The picker would only repeat the suggestion when the one other analysis is of the same file
-    if (others.length > sameFile.length || sameFile.length > 1) {
+    if (rest.length > 0 || sameFile.length > 1) {
         const pickerBtn = actionButton(sameFile.length > 0 ? 'Compare with another…' : 'Compare with…',
-            () => openComparePicker(result, sameFile, others));
+            () => openComparePicker(result, sameFile, rest));
         pickerBtn.classList.add('compare-open');
         // At the right end of the "Found N clauses" row, so it is seen without scrolling.
         // An analysis with no clauses has no such row; there it joins the export buttons.
@@ -448,12 +448,6 @@ async function addCompareOptions(result, message) {
         const meta = message.querySelector('.result-meta');
         meta.insertAdjacentElement('afterend', renderCompareSuggestion(result, sameFile));
     }
-}
-
-// Same filename, ignoring case: a re-run with different context, or a revised version of the contract.
-function isSameFile(entry, result) {
-    const name = (value) => String(value || '').trim().toLowerCase();
-    return name(entry.filename) !== '' && name(entry.filename) === name(result.filename);
 }
 
 // "You analysed this file before..." with a one-click comparison against the latest of those.
@@ -467,11 +461,10 @@ function renderCompareSuggestion(result, sameFile) {
     return suggestion;
 }
 
-function openComparePicker(result, sameFile, others) {
+function openComparePicker(result, sameFile, rest) {
     document.getElementById('compare-dialog-text').textContent =
         `Pick an analysis to compare with ${result.filename || 'this contract'} (${formatDateTime(result.timestamp)}).`;
     compareDialogList.replaceChildren();
-    const rest = others.filter(entry => !sameFile.includes(entry));
     if (sameFile.length > 0) appendPickerGroup('Same file', sameFile, result);
     if (rest.length > 0) appendPickerGroup(sameFile.length > 0 ? 'Other analyses' : '', rest, result);
     compareDialog.showModal();
@@ -511,25 +504,17 @@ function renderPickerItem(entry, result) {
     return button;
 }
 
-// The older analysis is A and the newer one B, so "lower risk in B" reads as a change over time.
+// The server puts the older analysis as A and the newer as B, so "lower risk in B" reads as a change over time.
 function compareWith(result, other) {
     const origin = { id: result.id, filename: result.filename, context: result.context };
-    if (isOlder(result, other)) openComparison(result.id, other.id, origin);
-    else openComparison(other.id, result.id, origin);
-}
-
-function isOlder(first, second) {
-    const difference = new Date(first.timestamp) - new Date(second.timestamp);
-    if (difference) return difference < 0;
-    // Same moment (or an unreadable date): ids are handed out in order, as the server's own sorting assumes
-    return String(first.id) <= String(second.id);
+    openComparison(result.id, other.id, origin, true);
 }
 
 // No AI call: the server works out the differences from the two saved analyses.
 // origin is the analysis the comparison was started from, for the way back.
-async function openComparison(idA, idB, origin) {
+async function openComparison(idA, idB, origin, chronological = false) {
     const requestId = ++activeRequestId;
-    lastAction = () => openComparison(idA, idB, origin);
+    lastAction = () => openComparison(idA, idB, origin, chronological);
     analysisResult = null;
     removeFile();
     setBusy(false);
@@ -539,10 +524,13 @@ async function openComparison(idA, idB, origin) {
 
     try {
         const comparison = await fetchJson(
-            `/api/compare?a=${encodeURIComponent(idA)}&b=${encodeURIComponent(idB)}`);
+            `/api/compare?a=${encodeURIComponent(idA)}&b=${encodeURIComponent(idB)}`
+            + (chronological ? '&chronological=1' : ''));
         if (requestId !== activeRequestId) return;
         const message = renderComparison(comparison);
-        message.insertBefore(renderCompareToolbar(idA, idB, origin), message.children[1] || null);
+        // The server may have swapped the two, so the toolbar uses the order it returned
+        message.insertBefore(renderCompareToolbar(comparison.a.id, comparison.b.id, origin),
+            message.children[1] || null);
         showThread({ context: '' }, message);
     } catch (error) {
         console.error('Comparing analyses failed:', error);
