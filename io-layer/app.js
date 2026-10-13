@@ -625,11 +625,6 @@ async function initPage() {
             return;
         }
         const data = await response.json();
-        if (data && data.user && data.user.role === 'admin') {
-            // Admins have their own page
-            window.location.replace('/admin_index.html');
-            return;
-        }
         showSignedInUser(data && data.user);
     } catch (error) {
         console.error('Checking sign-in failed:', error);

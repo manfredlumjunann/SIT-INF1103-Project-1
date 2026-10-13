@@ -122,7 +122,7 @@ async function handleSubmit(event) {
             body: JSON.stringify(payload)
         });
         if (response.ok) {
-            goToMainPage(await readUser(response));
+            goToMainPage();
             return;
         }
         showError(await describeAuthError(response), registering && response.status === 409 ? 'username' : null);
@@ -166,25 +166,15 @@ function clearMessages() {
     authForm.querySelectorAll('[aria-invalid]').forEach(el => el.removeAttribute('aria-invalid'));
 }
 
-// The logic layer says whether the account is a normal user or an admin; each has its own page.
-function goToMainPage(user) {
-    window.location.replace(user && user.role === 'admin' ? '/admin_index.html' : '/user_index.html');
-}
-
-async function readUser(response) {
-    try {
-        const data = await response.json();
-        return data && data.user;
-    } catch (error) {
-        return null;   // treated as a normal user; the page itself re-checks the role
-    }
+function goToMainPage() {
+    window.location.replace('/user_index.html');
 }
 
 // Skip the form entirely if this browser is already signed in.
 async function redirectIfSignedIn() {
     try {
         const response = await fetch('/api/auth/me');
-        if (response.ok) goToMainPage(await readUser(response));
+        if (response.ok) goToMainPage();
     } catch (error) {
         // Server unreachable: stay on the form; submitting will report the problem
     }

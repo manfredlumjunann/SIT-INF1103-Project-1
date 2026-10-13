@@ -1,4 +1,4 @@
-// Contract Clause Analyzer - helpers shared by the user and admin pages. Load before the page script.
+// Contract Clause Analyzer - helpers shared by the app pages. Load before the page script.
 // All text from the server (AI output, web-search results, filenames) is untrusted and is only
 // ever inserted with textContent via createElement(), never parsed as HTML.
 
@@ -86,7 +86,7 @@ function describeHttpError(status, serverMessage) {
             return {
                 title: 'Not allowed',
                 message: serverMessage || 'Your account is not allowed to view this.',
-                hint: 'Sign in with an administrator account to see other users\' analyses.'
+                hint: 'Check your account permissions or contact the team for help.'
             };
         case 404:
             return {
@@ -426,8 +426,8 @@ function formatShortDate(timestamp) {
 
 const RISK_CHANGE_LABELS = { higher: 'Higher risk in B', lower: 'Lower risk in B', same: 'Same risk level' };
 
-// Shows a /api/compare response. showOwners adds whose analysis each side is (admin page).
-function renderComparison(comparison, showOwners = false) {
+// Shows a /api/compare response.
+function renderComparison(comparison) {
     const listOf = (value) => (Array.isArray(value) ? value : []);
     const inBoth = listOf(comparison.in_both);
     const onlyA = listOf(comparison.only_a);
@@ -437,8 +437,8 @@ function renderComparison(comparison, showOwners = false) {
     const message = renderAssistantShell();
     message.classList.add('comparison');   // styles.css gives a comparison the full page width
     const sides = createElement('div', 'compare-sides');
-    sides.appendChild(renderCompareSide('A', comparison.a, showOwners));
-    sides.appendChild(renderCompareSide('B', comparison.b, showOwners));
+    sides.appendChild(renderCompareSide('A', comparison.a));
+    sides.appendChild(renderCompareSide('B', comparison.b));
     message.appendChild(sides);
 
     if (inBoth.length + onlyA.length + onlyB.length === 0) {
@@ -468,16 +468,14 @@ function renderComparison(comparison, showOwners = false) {
 }
 
 // One of the two analyses being compared: which file, when, and its risk counts.
-function renderCompareSide(letter, summary, showOwner) {
+function renderCompareSide(letter, summary) {
     const side = createElement('div', 'compare-side');
     const title = createElement('div', 'compare-side-title');
     title.appendChild(createElement('span', 'compare-letter', letter));
     title.appendChild(createElement('span', 'compare-file', summary.filename || 'Contract'));
     side.appendChild(title);
 
-    const details = [formatDateTime(summary.timestamp)];
-    if (showOwner) details.unshift(summary.owner_username || 'Unknown user');
-    side.appendChild(createElement('p', 'result-meta', details.join(' · ')));
+    side.appendChild(createElement('p', 'result-meta', formatDateTime(summary.timestamp)));
     if (summary.context) side.appendChild(createElement('p', 'compare-context', `Context: ${summary.context}`));
 
     const counts = summary.counts || {};

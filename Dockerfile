@@ -35,11 +35,9 @@ RUN mkdir -p /app/data
 # Copy IO layer files
 COPY io-layer/nginx.conf /etc/nginx/conf.d/default.conf
 COPY io-layer/user_index.html /usr/share/nginx/html/
-COPY io-layer/admin_index.html /usr/share/nginx/html/
 COPY io-layer/styles.css /usr/share/nginx/html/
 COPY io-layer/common.js /usr/share/nginx/html/
 COPY io-layer/app.js /usr/share/nginx/html/
-COPY io-layer/admin.js /usr/share/nginx/html/
 COPY io-layer/login.html /usr/share/nginx/html/
 COPY io-layer/login.js /usr/share/nginx/html/
 COPY io-layer/theme.js /usr/share/nginx/html/
