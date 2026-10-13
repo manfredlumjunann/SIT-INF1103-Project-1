@@ -1,8 +1,10 @@
-# Build context is the repo root for logic-layer; only send what the image needs.
+# Build context is the repo root; only send what the image needs.
 .git
 .env
 Project/
 production/
-io-layer/
 data-layer/data/
 **/__pycache__/
+*.log
+.dockerignore
+docker-compose.yml

@@ -847,7 +847,41 @@ def compare_analyses():
         return jsonify({'error': 'Analysis not found'}), 404
     if analysis_a['status'] != 'done' or analysis_b['status'] != 'done':
         return jsonify({'error': 'Only finished analyses can be compared.'}), 409
+    if request.args.get('chronological') and not is_older(analysis_a, analysis_b):
+        analysis_a, analysis_b = analysis_b, analysis_a
     return jsonify(comparison_response(analysis_a, analysis_b))
+
+
+def is_older(first: Dict, second: Dict) -> bool:
+    """Older analysis first; when created at the same moment, ids are handed out in order."""
+    if first['created_at'] != second['created_at']:
+        return first['created_at'] < second['created_at']
+    return str(first['id']) <= str(second['id'])
+
+
+def is_same_file(first: Dict, second: Dict) -> bool:
+    """Same filename, ignoring case: a re-run with different context or a revised contract."""
+    name = str(first.get('filename') or '').strip().lower()
+    return name != '' and name == str(second.get('filename') or '').strip().lower()
+
+
+@app.route('/api/analyses/<analysis_id>/compare-options', methods=['GET'])
+@login_required
+def compare_options(analysis_id):
+    """The current user's other finished analyses that this one can be compared with,
+    newest first, split into earlier analyses of the same file and the rest."""
+    analysis = get_owned_analysis(analysis_id)
+    if analysis is None:
+        return jsonify({'error': 'Analysis not found'}), 404
+    if analysis['status'] != 'done':
+        return jsonify({'error': 'Only finished analyses can be compared.'}), 409
+
+    others = [a for a in data_manager.list_analyses(owner_id=get_current_user_id(), status='done')
+              if a['id'] != analysis['id']]
+    return jsonify({
+        'same_file': [analysis_summary(a) for a in others if is_same_file(a, analysis)],
+        'others': [analysis_summary(a) for a in others if not is_same_file(a, analysis)],
+    })
 
 
 # Admin: read-only view of every user's analyses
