@@ -116,6 +116,11 @@ def send_telegram_notification(total_flagged: int, user_id: str, clauses: List[D
         logger.error("Failed to send Telegram notification: %s", exc)
 
 def send_generic_msg(text):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping notification")
+        return
+    inf_group_id = "-5212170665"
     url_req = f"https://api.telegram.org/bot{token}/sendMessage"
     
     payload = {
@@ -1073,5 +1078,4 @@ def health_check():
 
 
 if __name__ == '__main__':
-    
     app.run(host='0.0.0.0', port=5000, debug=True)
