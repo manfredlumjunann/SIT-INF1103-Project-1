@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  io-layer:
+    build:
+      context: ./io-layer
+      dockerfile: Dockerfile
+    container_name: contract-analyzer-io
+    ports:
+      - "8080:80"
+    networks:
+      - contract-network
+    depends_on:
+      - logic-layer
+    restart: unless-stopped
+
+  logic-layer:
+    build:
+      context: .
+      dockerfile: logic-layer/Dockerfile
+    container_name: contract-analyzer-logic
+    env_file:
+      - .env
+    environment:
+      - DATA_DIR=/app/data
+    volumes:
+      - contract-data:/app/data
+    networks:
+      - contract-network
+    restart: unless-stopped
+    # No exposed ports - only accessible via internal network
+
+networks:
+  contract-network:
+    driver: bridge
+
+volumes:
+  contract-data:

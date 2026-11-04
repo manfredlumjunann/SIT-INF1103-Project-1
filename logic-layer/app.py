@@ -19,6 +19,7 @@ import logging
 import secrets
 
 import requests
+import time
 
 from flask import Flask, request, jsonify, session, g
 from werkzeug.utils import secure_filename
@@ -114,6 +115,16 @@ def send_telegram_notification(total_flagged: int, user_id: str, clauses: List[D
     except Exception as exc:
         logger.error("Failed to send Telegram notification: %s", exc)
 
+def send_generic_msg(text):
+    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
+    
+    payload = {
+        "chat_id": inf_group_id,
+        "text": text,
+    }
+
+    results = requests.post(url_req, json=payload)
+    print(results.json())
 
 def send_telegram_error_notification(error_message: str) -> None:
     """Send AI error notifications to the INF group chat."""
@@ -127,7 +138,16 @@ def send_telegram_error_notification(error_message: str) -> None:
 
     payload = {
         "chat_id": inf_group_id,
-        "text": f"⚠️ AI Processing Error\n\n{error_message}"
+        "text": f"⚠️ AI Processing Error\n\n{error_message}",
+        "parse_mode": "Markdown",
+        "reply_markup": {
+            "inline_keyboard": [
+                [
+                    {"text": "✅ Fix", "callback_data": "accept"},
+                    {"text": "❌ Stop", "callback_data": "reject"}
+                ]
+            ]
+        }
     }
     try:
         results = requests.get(url_req, params=payload, timeout=10)
@@ -135,6 +155,84 @@ def send_telegram_error_notification(error_message: str) -> None:
     except Exception as exc:
         logger.error("Failed to send Telegram error notification: %s", exc)
 
+def execute_vscode_output(command):
+    """Triggers the specific action inside VS Code based on your phone's text."""
+    print(f"⚙️ VS Code is executing local task for: '{command}'")
+    
+    # Example Output Actions
+    if command.lower() == "accept":
+        send_generic_msg("Testing")
+        
+    elif command.lower() == "reject":
+        send_generic_msg("Welp you rejected it so i guess it works")
+        
+    else:
+        send_generic_msg(f"⚠️ *VS Code:* Unknown command '{command}'. Script closed anyway.")
+
+def wait_for_single_reply(last_update_id):
+
+    url_req = f"https://api.telegram.org/bot{token}/getUpdates"
+
+    print("📱 Telegram listener ACTIVE. Waiting for button press...")
+
+    while True:
+
+        payload = {
+            "offset": last_update_id + 1,
+            "timeout": 10,
+            "allowed_updates": ["callback_query"]
+        }
+
+        try:
+            results = requests.get(
+                url_req,
+                params=payload,
+                timeout=15
+            ).json()
+
+            if results.get("ok") and results.get("result"):
+
+                for update in results["result"]:
+
+                    last_update_id = max(
+                        last_update_id,
+                        update["update_id"]
+                    )
+
+                    callback = update.get("callback_query")
+
+                    if not callback:
+                        continue
+
+                    # Verify sender
+                    if str(callback["message"]["chat"]["id"]) != str(inf_group_id):
+                        continue
+
+                    # Get button selection
+                    user_choice = callback.get("data")
+
+                    # Acknowledge button press
+                    requests.post(
+                        f"https://api.telegram.org/bot{token}/editMessageReplyMarkup",
+                        json={
+                            "chat_id": callback["message"]["chat"]["id"],
+                            "message_id": callback["message"]["message_id"],
+                            "reply_markup": {
+                                "inline_keyboard": []
+                            }
+                        }
+                    )
+
+                    if user_choice:
+                        return user_choice, last_update_id
+
+        except requests.RequestException as e:
+            print(f"Error checking Telegram: {e}")
+
+        except ValueError as e:
+            print(f"Invalid Telegram response: {e}")
+
+        time.sleep(1)
 
 def init_data_layer() -> None:
     """Load all saved records and mark analyses that were interrupted by a restart as failed."""
@@ -404,7 +502,26 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
     
     # Send Telegram notification for AI failures
     if error_category:
+        token = os.getenv("TELEGRAM_BOT_TOKEN")
+        if not token:
+            logger.warning("TELEGRAM_BOT_TOKEN not set; skipping error notification")
+            return
+        
+        url_req = f"https://api.telegram.org/bot{token}/getUpdates"
+        try:
+            initial_res = requests.get(url_req, params={"offset": -1}, timeout=15).json()
+        except (requests.RequestException, ValueError) as e:
+            print(f"Telegram startup check failed: {e}")
+            initial_res = {}
+    
+        last_update_id = 0
+        if initial_res.get("result"):
+            last_update_id = initial_res["result"][0]["update_id"]
+        
         send_telegram_error_notification(error_category)
+        user_input, last_update_id = wait_for_single_reply(last_update_id)
+        execute_vscode_output(user_input)
+        
     
     raise RuntimeError(
         f"All AI models are currently unavailable. Last error: {last_error}. "
@@ -956,4 +1073,5 @@ def health_check():
 
 
 if __name__ == '__main__':
+    
     app.run(host='0.0.0.0', port=5000, debug=True)
