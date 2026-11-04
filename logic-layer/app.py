@@ -175,6 +175,10 @@ def execute_vscode_output(command):
         send_generic_msg(f"⚠️ *VS Code:* Unknown command '{command}'. Script closed anyway.")
 
 def wait_for_single_reply(last_update_id):
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping error notification")
+        return
 
     url_req = f"https://api.telegram.org/bot{token}/getUpdates"
 
