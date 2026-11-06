@@ -399,10 +399,7 @@ def complete_analysis(analysis_id: str, ai_clauses: List[Record]) -> Record:
         clauses = [_normalise_clause(index, raw, new_references)
                    for index, raw in enumerate(ai_clauses, start=1)]
 
-        known_ids = {r['id'] for r in _records('references')}
-        additions = [r for ref_id, r in new_references.items() if ref_id not in known_ids]
-        if additions:
-            _write_collection('references', _records('references') + additions)
+        _references.add_many(list(new_references.values()))
 
         counts = {level.lower(): 0 for level in RISK_LEVELS}
         for clause in clauses:
@@ -482,12 +479,12 @@ def _normalise_clause(index: int, raw: Record, references: Dict[str, Record]) ->
         url = str(ref.get('url') or '').strip() if isinstance(ref, dict) else ''
         if not url:
             continue
-        ref_id = _reference_id(url)
+        ref_id = ReferenceRepository.reference_id(url)
         references.setdefault(ref_id, {
             'id': ref_id,
             'url': url,
             'title': str(ref.get('title') or url),
-            'domain': _domain(url),
+            'domain': ReferenceRepository.domain(url),
             'verification': 'unverified',
         })
         clause_refs.append({'ref_id': ref_id, 'snippet': str(ref.get('summary') or '')})
@@ -520,44 +517,77 @@ def _parse_location(raw: Any) -> Record:
 
 # References
 
-def _reference_id(url: str) -> str:
-    """Stable id derived from the URL, so the same source is stored once."""
-    return 'ref_' + hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]
+class ReferenceRepository:
+    COLLECTION = 'references'
+
+    def __init__(self, store: JsonStore) -> None:
+        self._store = store
+
+    @staticmethod
+    def reference_id(url: str) -> str:
+        """Stable id derived from the URL, so the same source is stored once."""
+        return 'ref_' + hashlib.sha256(url.encode('utf-8')).hexdigest()[:12]
+
+    @staticmethod
+    def domain(url: str) -> str:
+        host = urlparse(url).netloc.lower()
+        return host[4:] if host.startswith('www.') else host
+
+    def get(self, ref_id: str) -> Optional[Record]:
+        with self._store.lock:
+            self._store.ensure_loaded()
+            return copy.deepcopy(self._store.find(self.COLLECTION, ref_id))
+
+    def add_many(self, references: List[Record]) -> List[Record]:
+        """Save references whose id is not stored yet; existing ones are left untouched.
+        Returns copies of the references that were added."""
+        with self._store.lock:
+            self._store.ensure_loaded()
+            existing = self._store.records(self.COLLECTION)
+            known_ids = {r['id'] for r in existing}
+            additions = [r for r in references if r['id'] not in known_ids]
+            if additions:
+                self._store.write(self.COLLECTION, existing + additions)
+            return [copy.deepcopy(r) for r in additions]
+
+    def resolve(self, clause: Record) -> List[Record]:
+        """Expand a stored clause's {ref_id, snippet} links into full references for display.
+        Links to references that no longer exist are skipped."""
+        resolved = []
+        with self._store.lock:
+            self._store.ensure_loaded()
+            for link in clause.get('references') or []:
+                ref = self._store.find(self.COLLECTION, link.get('ref_id', ''))
+                if ref is None:
+                    continue
+                resolved.append({
+                    'title': ref['title'],
+                    'url': ref['url'],
+                    'summary': link.get('snippet', ''),
+                    'domain': ref['domain'],
+                    'verification': ref['verification'],
+                })
+        return resolved
+
+    def set_verification(self, ref_id: str, verification: str) -> Record:
+        _require_choice(verification, VERIFICATION_STATES, 'verification')
+        with self._store.lock:
+            self._store.ensure_loaded()
+            return self._store.update(self.COLLECTION, ref_id, {'verification': verification})
 
 
-def _domain(url: str) -> str:
-    host = urlparse(url).netloc.lower()
-    return host[4:] if host.startswith('www.') else host
+_references = ReferenceRepository(_default_store)
 
 
 def get_reference(ref_id: str) -> Optional[Record]:
-    with _lock:
-        _ensure_loaded()
-        return copy.deepcopy(_find('references', ref_id))
+    return _references.get(ref_id)
 
 
 def resolve_references(clause: Record) -> List[Record]:
     """Expand a stored clause's {ref_id, snippet} links into full references for display.
     Links to references that no longer exist are skipped."""
-    resolved = []
-    with _lock:
-        _ensure_loaded()
-        for link in clause.get('references') or []:
-            ref = _find('references', link.get('ref_id', ''))
-            if ref is None:
-                continue
-            resolved.append({
-                'title': ref['title'],
-                'url': ref['url'],
-                'summary': link.get('snippet', ''),
-                'domain': ref['domain'],
-                'verification': ref['verification'],
-            })
-    return resolved
+    return _references.resolve(clause)
 
 
 def set_reference_verification(ref_id: str, verification: str) -> Record:
-    _require_choice(verification, VERIFICATION_STATES, 'verification')
-    with _lock:
-        _ensure_loaded()
-        return _update('references', ref_id, {'verification': verification})
+    return _references.set_verification(ref_id, verification)
