@@ -1,0 +1,37 @@
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-contract_analyzer}
+      POSTGRES_USER: ${POSTGRES_USER:-contract_app}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-contract_app_dev}
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    # No published port: only the app container can reach the database
+
+  app:
+    build: .
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contract_app}:${POSTGRES_PASSWORD:-contract_app_dev}@db:5432/${POSTGRES_DB:-contract_analyzer}
+    ports:
+      - "8080:80"
+    volumes:
+      # JSON storage stays in use until the data layer is switched to Postgres
+      - app-data:/app/data
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  postgres-data:
+  app-data:

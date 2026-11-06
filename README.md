@@ -1,5 +1,19 @@
 # SIT-INF1103-Project-1
 
+## Running the app
+
+1. Create a `.env` file in the repo root with your keys: `OPENROUTER_API_KEY`, `TELEGRAM_BOT_TOKEN`, `FIRECRAWL_API_KEY` (optional) and `SECRET_KEY`. The Postgres settings have working defaults; override `POSTGRES_PASSWORD` etc. here if needed.
+
+2. Start everything (app and Postgres database):
+```bash
+docker compose up --build
+```
+
+3. Open http://localhost:8080.
+
+Use `--build` after every pull so the image includes the latest code. Data is kept in Docker volumes between restarts. `docker compose down` is safe;
+`docker compose down -v` also **deletes the database and saved data**.
+
 ## AI error notifications
 
 The Docker image runs the logic layer and imports the shared OpenRouter code from

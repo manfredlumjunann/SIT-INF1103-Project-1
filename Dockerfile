@@ -23,7 +23,10 @@ RUN pip install --no-cache-dir \
     python-docx==1.1.0 \
     requests==2.31.0 \
     python-dotenv==1.0.1 \
-    werkzeug==3.0.3
+    werkzeug==3.0.3 \
+    sqlalchemy==2.1.8 \
+    "psycopg[binary]==3.3.8" \
+    alembic==1.20.1
 
 # Copy logic layer application
 COPY logic-layer/app.py /app/
