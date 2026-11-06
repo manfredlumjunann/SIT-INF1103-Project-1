@@ -215,13 +215,6 @@ class JsonStore:
                        if (m := pattern.match(str(r.get('id', ''))))]
         return f'{prefix}_{max(numbers, default=0) + 1:03d}'
 
-_default_store = JsonStore(DATA_DIR)
-
-
-def init_storage(data_dir: Optional[Union[str, Path]] = None) -> Dict[str, int]:
-    """Load every collection from disk into memory. Returns record counts."""
-    return _default_store.load(data_dir)
-
 # Shared helpers used by the user, analysis and reference functions
 
 def _now() -> str:
@@ -299,28 +292,6 @@ class UserRepository:
             users = sorted(self._store.records(self.COLLECTION), key=lambda u: u['username'])
             return [copy.deepcopy(u) for u in users]
 
-
-_users = UserRepository(_default_store)
-
-
-def create_user(username: str, password_hash: str, role: str = 'customer') -> Record:
-    """Create a user. Usernames are unique regardless of case and stored in lowercase.
-    The password must already be hashed by the caller."""
-    return _users.create(username, password_hash, role)
-
-
-def get_user(user_id: str) -> Optional[Record]:
-    return _users.get(user_id)
-
-
-def find_user_by_username(username: str) -> Optional[Record]:
-    return _users.find_by_username(username)
-
-
-def list_users() -> List[Record]:
-    """Every user, ordered by username."""
-    return _users.list()
-
 # References
 
 class ReferenceRepository:
@@ -380,23 +351,6 @@ class ReferenceRepository:
         with self._store.lock:
             self._store.ensure_loaded()
             return self._store.update(self.COLLECTION, ref_id, {'verification': verification})
-
-
-_references = ReferenceRepository(_default_store)
-
-
-def get_reference(ref_id: str) -> Optional[Record]:
-    return _references.get(ref_id)
-
-
-def resolve_references(clause: Record) -> List[Record]:
-    """Expand a stored clause's {ref_id, snippet} links into full references for display.
-    Links to references that no longer exist are skipped."""
-    return _references.resolve(clause)
-
-
-def set_reference_verification(ref_id: str, verification: str) -> Record:
-    return _references.set_verification(ref_id, verification)
 
 # Clauses: converting AI output into the stored schema
 
@@ -573,8 +527,65 @@ class AnalysisRepository:
             return [copy.deepcopy(c) for c in analysis['clauses'] if c['risk_level'] == level]
 
 
-_analyses = AnalysisRepository(_default_store, _users, _references, ClauseParser())
 
+class DataManager:
+
+    def __init__(self, data_dir: Union[str, Path]) -> None:
+        self.store = JsonStore(data_dir)
+        self.users = UserRepository(self.store)
+        self.references = ReferenceRepository(self.store)
+        self.analyses = AnalysisRepository(self.store, self.users, self.references, ClauseParser())
+
+    @property
+    def data_dir(self) -> Path:
+        return self.store.data_dir
+
+    def init_storage(self) -> Dict[str, int]:
+        return self.store.load()
+
+_default = DataManager(DATA_DIR)
+
+
+def init_storage(data_dir: Optional[Union[str, Path]] = None) -> Dict[str, int]:
+    global _default
+    if data_dir is not None:
+        _default = DataManager(data_dir)
+    return _default.init_storage()
+
+# Users
+
+def create_user(username: str, password_hash: str, role: str = 'customer') -> Record:
+    return _default.users.create(username, password_hash, role)
+
+
+def get_user(user_id: str) -> Optional[Record]:
+    return _default.users.get(user_id)
+
+
+def find_user_by_username(username: str) -> Optional[Record]:
+    return _default.users.find_by_username(username)
+
+
+def list_users() -> List[Record]:
+    """Every user, ordered by username."""
+    return _default.users.list()
+
+# References
+
+def get_reference(ref_id: str) -> Optional[Record]:
+    return _default.references.get(ref_id)
+
+
+def resolve_references(clause: Record) -> List[Record]:
+    """Expand a stored clause's {ref_id, snippet} links into full references for display.
+    Links to references that no longer exist are skipped."""
+    return _default.references.resolve(clause)
+
+
+def set_reference_verification(ref_id: str, verification: str) -> Record:
+    return _default.references.set_verification(ref_id, verification)
+
+# Analyses
 
 def compute_contract_hash(contract_text: str, context: str = '') -> str:
     """Identical contract text AND context produce the same hash, so a repeat
@@ -585,37 +596,37 @@ def compute_contract_hash(contract_text: str, context: str = '') -> str:
 def create_analysis(owner_id: str, filename: str, contract_text: str,
                     context: str = '') -> Record:
     """Record a new analysis in 'processing' state before the AI runs."""
-    return _analyses.create(owner_id, filename, contract_text, context)
+    return _default.analyses.create(owner_id, filename, contract_text, context)
 
 
 def complete_analysis(analysis_id: str, ai_clauses: List[Record]) -> Record:
     """Store the AI-flagged clauses and mark the analysis done."""
-    return _analyses.complete(analysis_id, ai_clauses)
+    return _default.analyses.complete(analysis_id, ai_clauses)
 
 
 def fail_analysis(analysis_id: str) -> Record:
-    return _analyses.fail(analysis_id)
+    return _default.analyses.fail(analysis_id)
 
 
 def delete_analysis(analysis_id: str) -> Record:
     """Permanently remove an analysis. Returns the deleted record."""
-    return _analyses.delete(analysis_id)
+    return _default.analyses.delete(analysis_id)
 
 
 def get_analysis(analysis_id: str) -> Optional[Record]:
-    return _analyses.get(analysis_id)
+    return _default.analyses.get(analysis_id)
 
 
 def find_analysis_by_hash(owner_id: str, contract_hash: str) -> Optional[Record]:
-    return _analyses.find_by_hash(owner_id, contract_hash)
+    return _default.analyses.find_by_hash(owner_id, contract_hash)
 
 
 def list_analyses(owner_id: Optional[str] = None,
                   status: Optional[str] = None,
                   risk_level: Optional[str] = None) -> List[Record]:
     """Newest first. risk_level keeps only analyses with at least one clause at that level."""
-    return _analyses.list(owner_id, status, risk_level)
+    return _default.analyses.list(owner_id, status, risk_level)
 
 
 def filter_clauses_by_risk(analysis_id: str, risk_level: str) -> List[Record]:
-    return _analyses.filter_clauses_by_risk(analysis_id, risk_level)
+    return _default.analyses.filter_clauses_by_risk(analysis_id, risk_level)
