@@ -44,6 +44,15 @@ _lock = threading.RLock()
 
 # Storage: loading, validation and atomic writes
 
+class JsonStore:
+
+    def __init__(self, data_dir: Union[str, Path]) -> None:
+        self.data_dir = Path(data_dir)
+        self._records: Dict[str, List[Record]] = {name: [] for name in COLLECTIONS}
+        self._loaded = False
+        self._lock = threading.RLock()
+
+
 def init_storage(data_dir: Optional[Union[str, Path]] = None) -> Dict[str, int]:
     """Load every collection from disk into memory. Returns record counts."""
     global DATA_DIR, _loaded
