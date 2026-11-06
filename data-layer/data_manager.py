@@ -38,10 +38,6 @@ REQUIRED_FIELDS: Dict[str, Dict[str, type]] = {
 # Clause fields the app reads when displaying an analysis
 REQUIRED_CLAUSE_FIELDS: Dict[str, type] = {'id': str, 'risk_level': str, 'location': dict, 'references': list}
 
-_store: Dict[str, List[Record]] = {name: [] for name in COLLECTIONS}
-_loaded = False
-_lock = threading.RLock()
-
 # Storage: loading, validation and atomic writes
 
 class JsonStore:
@@ -52,163 +48,214 @@ class JsonStore:
         self._loaded = False
         self._lock = threading.RLock()
 
+    @property
+    def lock(self) -> threading.RLock:
+        return self._lock
+
+    # Loading
+
+    def load(self, data_dir: Optional[Union[str, Path]] = None) -> Dict[str, int]:
+        """Load every collection from disk into memory. Returns record counts."""
+        with self._lock:
+            if data_dir is not None:
+                self.data_dir = Path(data_dir)
+            self.data_dir.mkdir(parents=True, exist_ok=True)
+            for name in COLLECTIONS:
+                self._records[name] = self._load_collection(name)
+            self._loaded = True
+            counts = {name: len(self._records[name]) for name in COLLECTIONS}
+        logger.info("Loaded records from %s: %s", self.data_dir, counts)
+        return counts
+
+    def ensure_loaded(self) -> None:
+        with self._lock:
+            if not self._loaded:
+                self.load()
+
+    def _load_collection(self, collection: str) -> List[Record]:
+        """Read one collection file. A missing file starts empty. A file that is not a JSON
+        list is moved aside and starts empty. Individual invalid records are skipped."""
+        path = self._file_path(collection)
+        if not path.exists():
+            return []
+        try:
+            with path.open(encoding='utf-8') as f:
+                data = json.load(f)
+            if not isinstance(data, list):
+                raise ValueError("expected a JSON list of records")
+        except (OSError, ValueError) as e:
+            quarantine = path.with_name(f'{path.name}.corrupt-{self._file_timestamp()}')
+            logger.warning("Corrupt data file %s (%s); moved to %s", path, e, quarantine.name)
+            try:
+                path.replace(quarantine)
+            except OSError as move_error:
+                logger.error("Could not move corrupt file %s: %s", path, move_error)
+            return []
+
+        valid: List[Record] = []
+        seen_ids = set()
+        problems = []
+        for position, record in enumerate(data):
+            problem = self._record_problem(collection, record)
+            if problem is None and record['id'] in seen_ids:
+                problem = 'duplicate id'
+            if problem is not None:
+                label = record.get('id') if isinstance(record, dict) else None
+                problems.append(f"item {position} ({label if label is not None else 'no id'}): {problem}")
+                continue
+            seen_ids.add(record['id'])
+            valid.append(record)
+
+        if problems:
+            self._set_aside_invalid_records(collection, path, valid, problems)
+        return valid
+
+    def _set_aside_invalid_records(self, collection: str, path: Path, valid: List[Record],
+                                   problems: List[str]) -> None:
+        """Keep a copy of the original file, then rewrite it with only the valid records
+        so the same problems are not reported again on the next start."""
+        backup = path.with_name(f'{path.name}.invalid-{self._file_timestamp()}')
+        logger.warning("Skipped %d invalid record(s) in %s (original kept as %s): %s",
+                       len(problems), path.name, backup.name, '; '.join(problems))
+        try:
+            shutil.copy2(path, backup)
+            self.write(collection, valid)
+        except OSError as e:
+            # The invalid records are still skipped in memory; the file is left as it was
+            logger.error("Could not back up or clean %s: %s", path, e)
+
+    def _file_path(self, collection: str) -> Path:
+        return self.data_dir / f'{collection}.json'
+
+    @staticmethod
+    def _file_timestamp() -> str:
+        return datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+
+    # Validation
+
+    @staticmethod
+    def _record_problem(collection: str, record: Any) -> Optional[str]:
+        if not isinstance(record, dict):
+            return 'not an object'
+        problem = JsonStore._missing_or_wrong_field(record, REQUIRED_FIELDS[collection])
+        if problem is not None:
+            return problem
+        if collection == 'analyses':
+            for number, clause in enumerate(record['clauses'], start=1):
+                if not isinstance(clause, dict):
+                    return f'clause {number} is not an object'
+                problem = JsonStore._missing_or_wrong_field(clause, REQUIRED_CLAUSE_FIELDS)
+                if problem is not None:
+                    return f'clause {number}: {problem}'
+        return None
+
+    @staticmethod
+    def _missing_or_wrong_field(record: Record, fields: Dict[str, type]) -> Optional[str]:
+        for field, expected_type in fields.items():
+            if field not in record:
+                return f"missing '{field}'"
+            if not isinstance(record[field], expected_type):
+                return f"'{field}' should be {expected_type.__name__}"
+        return None
+
+    # Writing
+
+    def write(self, collection: str, records: List[Record]) -> None:
+        """Atomically replace a collection file, then the in-memory copy."""
+        with self._lock:
+            path = self._file_path(collection)
+            tmp_path = path.with_name(f'{path.name}.tmp')
+            with tmp_path.open('w', encoding='utf-8') as f:
+                json.dump(records, f, indent=2, ensure_ascii=False)
+                f.flush()
+                os.fsync(f.fileno())
+            os.replace(tmp_path, path)
+            self._records[collection] = records
+
+    def append(self, collection: str, record: Record) -> Record:
+        with self._lock:
+            self.write(collection, self._records[collection] + [record])
+            return copy.deepcopy(record)
+
+    def update(self, collection: str, record_id: str, changes: Record) -> Record:
+        with self._lock:
+            records = list(self._records[collection])
+            for index, record in enumerate(records):
+                if record.get('id') == record_id:
+                    updated = {**copy.deepcopy(record), **changes}
+                    records[index] = updated
+                    self.write(collection, records)
+                    return copy.deepcopy(updated)
+        raise LookupError(f"{collection} record not found: {record_id}")
+
+    # Reading
+
+    def records(self, collection: str) -> List[Record]:
+        """The live list for a collection. Callers must copy records before handing them out."""
+        return self._records[collection]
+
+    def find(self, collection: str, record_id: str) -> Optional[Record]:
+        with self._lock:
+            for record in self._records[collection]:
+                if record.get('id') == record_id:
+                    return record
+        return None
+
+    def require(self, collection: str, record_id: str) -> Record:
+        record = self.find(collection, record_id)
+        if record is None:
+            raise LookupError(f"{collection} record not found: {record_id}")
+        return record
+
+    def next_id(self, collection: str) -> str:
+        prefix = ID_PREFIXES[collection]
+        pattern = re.compile(rf'^{prefix}_(\d+)$')
+        with self._lock:
+            numbers = [int(m.group(1)) for r in self._records[collection]
+                       if (m := pattern.match(str(r.get('id', ''))))]
+        return f'{prefix}_{max(numbers, default=0) + 1:03d}'
+
+_default_store = JsonStore(DATA_DIR)
+_lock = _default_store.lock
+
 
 def init_storage(data_dir: Optional[Union[str, Path]] = None) -> Dict[str, int]:
     """Load every collection from disk into memory. Returns record counts."""
-    global DATA_DIR, _loaded
-    with _lock:
-        if data_dir is not None:
-            DATA_DIR = Path(data_dir)
-        DATA_DIR.mkdir(parents=True, exist_ok=True)
-        for name in COLLECTIONS:
-            _store[name] = _load_collection(name)
-        _loaded = True
-        counts = {name: len(_store[name]) for name in COLLECTIONS}
-    logger.info("Loaded records from %s: %s", DATA_DIR, counts)
-    return counts
+    return _default_store.load(data_dir)
 
 
 def _ensure_loaded() -> None:
-    if not _loaded:
-        init_storage()
+    _default_store.ensure_loaded()
 
 
-def _file_path(collection: str) -> Path:
-    return DATA_DIR / f'{collection}.json'
-
-
-def _load_collection(collection: str) -> List[Record]:
-    """Read one collection file. A missing file starts empty. A file that is not a JSON
-    list is moved aside and starts empty. Individual invalid records are skipped."""
-    path = _file_path(collection)
-    if not path.exists():
-        return []
-    try:
-        with path.open(encoding='utf-8') as f:
-            data = json.load(f)
-        if not isinstance(data, list):
-            raise ValueError("expected a JSON list of records")
-    except (OSError, ValueError) as e:
-        quarantine = path.with_name(f'{path.name}.corrupt-{_file_timestamp()}')
-        logger.warning("Corrupt data file %s (%s); moved to %s", path, e, quarantine.name)
-        try:
-            path.replace(quarantine)
-        except OSError as move_error:
-            logger.error("Could not move corrupt file %s: %s", path, move_error)
-        return []
-
-    valid: List[Record] = []
-    seen_ids = set()
-    problems = []
-    for position, record in enumerate(data):
-        problem = _record_problem(collection, record)
-        if problem is None and record['id'] in seen_ids:
-            problem = 'duplicate id'
-        if problem is not None:
-            label = record.get('id') if isinstance(record, dict) else None
-            problems.append(f"item {position} ({label if label is not None else 'no id'}): {problem}")
-            continue
-        seen_ids.add(record['id'])
-        valid.append(record)
-
-    if problems:
-        _set_aside_invalid_records(collection, path, valid, problems)
-    return valid
-
-
-def _record_problem(collection: str, record: Any) -> Optional[str]:
-    """Why a stored record is unusable, or None if it has every required field."""
-    if not isinstance(record, dict):
-        return 'not an object'
-    problem = _missing_or_wrong_field(record, REQUIRED_FIELDS[collection])
-    if problem is not None:
-        return problem
-    if collection == 'analyses':
-        for number, clause in enumerate(record['clauses'], start=1):
-            if not isinstance(clause, dict):
-                return f'clause {number} is not an object'
-            problem = _missing_or_wrong_field(clause, REQUIRED_CLAUSE_FIELDS)
-            if problem is not None:
-                return f'clause {number}: {problem}'
-    return None
-
-
-def _missing_or_wrong_field(record: Record, fields: Dict[str, type]) -> Optional[str]:
-    for field, expected_type in fields.items():
-        if field not in record:
-            return f"missing '{field}'"
-        if not isinstance(record[field], expected_type):
-            return f"'{field}' should be {expected_type.__name__}"
-    return None
-
-
-def _set_aside_invalid_records(collection: str, path: Path, valid: List[Record],
-                               problems: List[str]) -> None:
-    """Keep a copy of the original file, then rewrite it with only the valid records
-    so the same problems are not reported again on the next start."""
-    backup = path.with_name(f'{path.name}.invalid-{_file_timestamp()}')
-    logger.warning("Skipped %d invalid record(s) in %s (original kept as %s): %s",
-                   len(problems), path.name, backup.name, '; '.join(problems))
-    try:
-        shutil.copy2(path, backup)
-        _write_collection(collection, valid)
-    except OSError as e:
-        # The invalid records are still skipped in memory; the file is left as it was
-        logger.error("Could not back up or clean %s: %s", path, e)
-
-
-def _file_timestamp() -> str:
-    return datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')
+def _records(collection: str) -> List[Record]:
+    return _default_store.records(collection)
 
 
 def _write_collection(collection: str, records: List[Record]) -> None:
-    path = _file_path(collection)
-    tmp_path = path.with_name(f'{path.name}.tmp')
-    with tmp_path.open('w', encoding='utf-8') as f:
-        json.dump(records, f, indent=2, ensure_ascii=False)
-        f.flush()
-        os.fsync(f.fileno())
-    os.replace(tmp_path, path)
-    _store[collection] = records
+    _default_store.write(collection, records)
 
 
 def _append(collection: str, record: Record) -> Record:
-    _write_collection(collection, _store[collection] + [record])
-    return copy.deepcopy(record)
+    return _default_store.append(collection, record)
 
 
 def _update(collection: str, record_id: str, changes: Record) -> Record:
-    records = list(_store[collection])
-    for index, record in enumerate(records):
-        if record.get('id') == record_id:
-            updated = {**copy.deepcopy(record), **changes}
-            records[index] = updated
-            _write_collection(collection, records)
-            return copy.deepcopy(updated)
-    raise LookupError(f"{collection} record not found: {record_id}")
+    return _default_store.update(collection, record_id, changes)
 
 
 def _find(collection: str, record_id: str) -> Optional[Record]:
-    for record in _store[collection]:
-        if record.get('id') == record_id:
-            return record
-    return None
+    return _default_store.find(collection, record_id)
 
 
 def _require(collection: str, record_id: str) -> Record:
-    record = _find(collection, record_id)
-    if record is None:
-        raise LookupError(f"{collection} record not found: {record_id}")
-    return record
+    return _default_store.require(collection, record_id)
 
 
 def _next_id(collection: str) -> str:
-    prefix = ID_PREFIXES[collection]
-    pattern = re.compile(rf'^{prefix}_(\d+)$')
-    numbers = [int(m.group(1)) for r in _store[collection]
-               if (m := pattern.match(str(r.get('id', ''))))]
-    return f'{prefix}_{max(numbers, default=0) + 1:03d}'
+    return _default_store.next_id(collection)
 
+# Shared helpers used by the user, analysis and reference functions
 
 def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -249,7 +296,7 @@ def create_user(username: str, password_hash: str, role: str = 'customer') -> Re
     }
     with _lock:
         _ensure_loaded()
-        if any(u['username'] == username for u in _store['users']):
+        if any(u['username'] == username for u in _records('users')):
             raise ValueError(f"Username already taken: {username}")
         record['id'] = _next_id('users')
         return _append('users', record)
@@ -269,7 +316,7 @@ def find_user_by_username(username: str) -> Optional[Record]:
     username = _normalise_username(username)
     with _lock:
         _ensure_loaded()
-        for user in _store['users']:
+        for user in _records('users'):
             if user['username'] == username:
                 return copy.deepcopy(user)
     return None
@@ -279,7 +326,7 @@ def list_users() -> List[Record]:
     """Every user, ordered by username."""
     with _lock:
         _ensure_loaded()
-        return [copy.deepcopy(u) for u in sorted(_store['users'], key=lambda u: u['username'])]
+        return [copy.deepcopy(u) for u in sorted(_records('users'), key=lambda u: u['username'])]
 
 # Analyses and clauses
 
@@ -326,10 +373,10 @@ def complete_analysis(analysis_id: str, ai_clauses: List[Record]) -> Record:
         clauses = [_normalise_clause(index, raw, new_references)
                    for index, raw in enumerate(ai_clauses, start=1)]
 
-        known_ids = {r['id'] for r in _store['references']}
+        known_ids = {r['id'] for r in _records('references')}
         additions = [r for ref_id, r in new_references.items() if ref_id not in known_ids]
         if additions:
-            _write_collection('references', _store['references'] + additions)
+            _write_collection('references', _records('references') + additions)
 
         counts = {level.lower(): 0 for level in RISK_LEVELS}
         for clause in clauses:
@@ -351,7 +398,7 @@ def delete_analysis(analysis_id: str) -> Record:
     with _lock:
         _ensure_loaded()
         analysis = _require('analyses', analysis_id)
-        _write_collection('analyses', [a for a in _store['analyses'] if a['id'] != analysis_id])
+        _write_collection('analyses', [a for a in _records('analyses') if a['id'] != analysis_id])
         return copy.deepcopy(analysis)
 
 
@@ -364,7 +411,7 @@ def get_analysis(analysis_id: str) -> Optional[Record]:
 def find_analysis_by_hash(owner_id: str, contract_hash: str) -> Optional[Record]:
     with _lock:
         _ensure_loaded()
-        matches = [a for a in _store['analyses']
+        matches = [a for a in _records('analyses')
                    if a['owner_id'] == owner_id
                    and a['contract_hash'] == contract_hash
                    and a['status'] == 'done']
@@ -382,7 +429,7 @@ def list_analyses(owner_id: Optional[str] = None,
         level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
     with _lock:
         _ensure_loaded()
-        matches = [a for a in _store['analyses']
+        matches = [a for a in _records('analyses')
                    if (owner_id is None or a['owner_id'] == owner_id)
                    and (status is None or a['status'] == status)
                    and (level is None or a['counts'].get(level.lower(), 0) > 0)]
