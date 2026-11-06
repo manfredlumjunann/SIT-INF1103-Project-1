@@ -511,25 +511,9 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
     
     # Send Telegram notification for AI failures
     if error_category:
-        token = os.getenv("TELEGRAM_BOT_TOKEN")
-        if not token:
-            logger.warning("TELEGRAM_BOT_TOKEN not set; skipping error notification")
-            return
-        
-        url_req = f"https://api.telegram.org/bot{token}/getUpdates"
-        try:
-            initial_res = requests.get(url_req, params={"offset": -1}, timeout=15).json()
-        except (requests.RequestException, ValueError) as e:
-            print(f"Telegram startup check failed: {e}")
-            initial_res = {}
-    
-        last_update_id = 0
-        if initial_res.get("result"):
-            last_update_id = initial_res["result"][0]["update_id"]
-        
         send_telegram_error_notification(error_category)
-        user_input, last_update_id = wait_for_single_reply(last_update_id)
-        execute_vscode_output(user_input)
+        #user_input, last_update_id = wait_for_single_reply(last_update_id)
+        #execute_vscode_output(user_input)
         
     
     raise RuntimeError(
