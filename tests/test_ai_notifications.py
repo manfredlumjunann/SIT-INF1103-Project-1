@@ -3,7 +3,6 @@ import io
 import json
 import os
 import sys
-import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
@@ -11,9 +10,21 @@ from unittest.mock import Mock, patch
 
 import httpx
 import openai
+from alembic import command as alembic_command
+from alembic.config import Config as AlembicConfig
+from sqlalchemy import text as sql_text
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+# The tests empty every table before each test, so they only run against a database
+# given explicitly for testing, never the app's DATABASE_URL. For example:
+#   docker run -d --rm -p 55432:5432 -e POSTGRES_PASSWORD=test postgres:17
+#   TEST_DATABASE_URL=postgresql://postgres:test@localhost:55432/postgres
+TEST_DATABASE_URL = os.getenv('TEST_DATABASE_URL')
+if not TEST_DATABASE_URL:
+    raise unittest.SkipTest('Set TEST_DATABASE_URL to a disposable PostgreSQL database to run these tests')
+
 _env_values = {
     'OPENROUTER_API_KEY': 'test-key',
     'TELEGRAM_BOT_TOKEN': 'test-token',
@@ -21,9 +32,8 @@ _env_values = {
     'SECRET_KEY': 'test-secret',
     'ADMIN_USERNAME': '',
     'ADMIN_PASSWORD': '',
+    'DATABASE_URL': TEST_DATABASE_URL,
 }
-_storage = tempfile.TemporaryDirectory()
-_env_values['DATA_DIR'] = _storage.name
 _old_env = {key: os.environ.get(key) for key in _env_values}
 os.environ.update(_env_values)
 
@@ -32,6 +42,10 @@ if not os.getenv('TEST_INSTALLED_APP'):
     sys.path.insert(0, str(ROOT / 'data-layer'))
 
 import ai_service
+import data_manager
+
+# The app checks the schema when it is imported, so migrate the test database first
+alembic_command.upgrade(AlembicConfig(str(data_manager.ALEMBIC_INI)), 'head')
 
 if os.getenv('TEST_INSTALLED_APP'):
     import app as logic
@@ -42,7 +56,7 @@ else:
 
 
 def tearDownModule():
-    _storage.cleanup()
+    logic.data_manager.default_manager().close()
     for key, value in _old_env.items():
         if value is None:
             os.environ.pop(key, None)
@@ -54,11 +68,18 @@ def response(text):
     return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])
 
 
+def reset_database():
+    """Empty every table and restart the id numbering, so each test starts clean."""
+    with logic.data_manager.default_manager().database.session() as session:
+        session.execute(sql_text(
+            'TRUNCATE clause_references, clauses, analyses, legal_references, users RESTART IDENTITY'))
+        session.execute(sql_text('ALTER SEQUENCE users_id_seq RESTART'))
+        session.execute(sql_text('ALTER SEQUENCE analyses_id_seq RESTART'))
+
+
 class AINotificationTests(unittest.TestCase):
     def setUp(self):
-        self.storage = tempfile.TemporaryDirectory()
-        logic.data_manager.init_storage(self.storage.name)
-        self.addCleanup(self.storage.cleanup)
+        reset_database()
         self.models = patch.multiple(ai_service, PRIMARY_MODEL='primary', FALLBACK_MODELS=['fallback'])
         self.models.start()
         self.addCleanup(self.models.stop)
