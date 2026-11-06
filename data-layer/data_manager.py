@@ -13,13 +13,14 @@ from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 from urllib.parse import urlparse
 
 from sqlalchemy import (CheckConstraint, DateTime, ForeignKey, Index, Integer, MetaData,
-                        Text, UniqueConstraint, create_engine, func, text)
+                        Text, UniqueConstraint, create_engine, func, select, text)
 from sqlalchemy import Sequence as DbSequence
 from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.engine import Engine, make_url
-from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from sqlalchemy.orm import (DeclarativeBase, Mapped, Session, mapped_column, relationship,
-                            sessionmaker)
+                            selectinload, sessionmaker)
 
 logger = logging.getLogger(__name__)
 
@@ -452,6 +453,27 @@ class Clause(Base):
             'references': [link.to_dict() for link in self.references],
         }
 
+    @classmethod
+    def from_dict(cls, position: int, data: Record) -> 'Clause':
+        """Build a clause (and its reference links) from a stored-schema clause dict,
+        i.e. the output of ClauseParser.normalise_clause or Clause.to_dict."""
+        location = data.get('location') or {}
+        return cls(
+            position=position,
+            clause_type=data['clause_type'],
+            category=data.get('category'),
+            risk_level=data['risk_level'],
+            clause_text=data['clause_text'],
+            location_page=location.get('page'),
+            location_clause_ref=location.get('clause_ref'),
+            location_raw=location.get('raw'),
+            issue_description=data['issue_description'],
+            workaround=data['workaround'],
+            references=[ClauseReference(position=number, reference_id=link['ref_id'],
+                                        snippet=link['snippet'])
+                        for number, link in enumerate(data.get('references') or [], start=1)],
+        )
+
 
 class ClauseReference(Base):
     """Links a clause to a legal reference, with the clause-specific snippet.
@@ -508,20 +530,26 @@ class UserRepository:
     def normalise_username(username: Any) -> str:
         return str(username or '').strip().lower()
 
-    def create(self, username: str, password_hash: str, role: str = 'customer') -> Record:
-        """Create a user. Usernames are unique regardless of case and stored in lowercase.
-        The password must already be hashed by the caller."""
-        username = self.normalise_username(username)
+    @staticmethod
+    def validate_new_user(username: Any, password_hash: Any, role: str) -> Record:
+        """Check and clean the fields for a new user (shared by the JSON and SQL versions).
+        Returns {'username', 'password_hash', 'role'}; raises ValueError if any is invalid."""
+        username = UserRepository.normalise_username(username)
         if not USERNAME_PATTERN.match(username):
             raise ValueError("Username must be 3-30 characters: letters, numbers, '.', '_' or '-'")
         _require_choice(role, USER_ROLES, 'role')
-        record = {
-            'id': '',
+        return {
             'username': username,
             'password_hash': _require_text(password_hash, 'password_hash'),
             'role': role,
-            'created_at': _now(),
         }
+
+    def create(self, username: str, password_hash: str, role: str = 'customer') -> Record:
+        """Create a user. Usernames are unique regardless of case and stored in lowercase.
+        The password must already be hashed by the caller."""
+        fields = self.validate_new_user(username, password_hash, role)
+        username = fields['username']
+        record = {'id': '', **fields, 'created_at': _now()}
         with self._store.lock:
             self._store.ensure_loaded()
             if any(u['username'] == username for u in self._store.records(self.COLLECTION)):
@@ -784,6 +812,247 @@ class AnalysisRepository:
             analysis = self._store.require(self.COLLECTION, analysis_id)
             return [copy.deepcopy(c) for c in analysis['clauses'] if c['risk_level'] == level]
 
+def _format_id(prefix: str, number: int) -> str:
+    return f'{prefix}_{number:03d}'
+
+
+def _violated_constraint(error: IntegrityError) -> Optional[str]:
+    diag = getattr(error.orig, 'diag', None)
+    return getattr(diag, 'constraint_name', None)
+
+
+class SqlUserRepository:
+
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    def create(self, username: str, password_hash: str, role: str = 'customer') -> Record:
+        """Create a user. Usernames are unique regardless of case and stored in lowercase.
+        The password must already be hashed by the caller."""
+        fields = UserRepository.validate_new_user(username, password_hash, role)
+        taken = ValueError(f"Username already taken: {fields['username']}")
+        try:
+            with self._db.session() as session:
+                # Checked first so a taken name does not use up an id number
+                if session.scalar(select(User.id).where(User.username == fields['username'])):
+                    raise taken
+                number = session.scalar(select(USER_ID_SEQUENCE.next_value()))
+                user = User(id=_format_id('us', number), **fields)
+                session.add(user)
+                session.flush()
+                session.refresh(user)  # loads created_at set by the database
+                return user.to_dict()
+        except IntegrityError as e:
+            # Two requests registering the same name at once: the unique index decides
+            if _violated_constraint(e) == 'uq_users_username':
+                raise taken from None
+            raise
+
+    def get(self, user_id: str) -> Optional[Record]:
+        with self._db.session() as session:
+            user = session.get(User, user_id)
+            return user.to_dict() if user else None
+
+    def find_by_username(self, username: str) -> Optional[Record]:
+        username = UserRepository.normalise_username(username)
+        with self._db.session() as session:
+            user = session.scalar(select(User).where(User.username == username))
+            return user.to_dict() if user else None
+
+    def list(self) -> List[Record]:
+        """Every user, ordered by username."""
+        with self._db.session() as session:
+            return [user.to_dict() for user in session.scalars(select(User).order_by(User.username))]
+
+
+class SqlReferenceRepository:
+    FIELDS = ('id', 'url', 'title', 'domain', 'verification')
+
+    def __init__(self, db: Database) -> None:
+        self._db = db
+
+    def get(self, ref_id: str) -> Optional[Record]:
+        with self._db.session() as session:
+            reference = session.get(LegalReference, ref_id)
+            return reference.to_dict() if reference else None
+
+    def add_many(self, references: List[Record]) -> List[Record]:
+        """Save references whose id is not stored yet; existing ones are left untouched.
+        Returns copies of the references that were added."""
+        with self._db.session() as session:
+            return self.add_many_in(session, references)
+
+    @classmethod
+    def add_many_in(cls, session: Session, references: List[Record]) -> List[Record]:
+        """add_many inside an existing transaction (used by SqlAnalysisRepository.complete)."""
+        if not references:
+            return []
+        rows = [{field: reference[field] for field in cls.FIELDS} for reference in references]
+        statement = (pg_insert(LegalReference).values(rows)
+                     .on_conflict_do_nothing().returning(LegalReference.id))
+        added = set(session.scalars(statement))
+        return [copy.deepcopy(r) for r in references if r['id'] in added]
+
+    def resolve(self, clause: Record) -> List[Record]:
+        """Expand a stored clause's {ref_id, snippet} links into full references for display.
+        Links to references that no longer exist are skipped."""
+        links = clause.get('references') or []
+        if not links:
+            return []
+        with self._db.session() as session:
+            ids = [link.get('ref_id', '') for link in links]
+            found = {r.id: r for r in session.scalars(
+                select(LegalReference).where(LegalReference.id.in_(ids)))}
+            resolved = []
+            for link in links:
+                ref = found.get(link.get('ref_id', ''))
+                if ref is None:
+                    continue
+                resolved.append({
+                    'title': ref.title,
+                    'url': ref.url,
+                    'summary': link.get('snippet', ''),
+                    'domain': ref.domain,
+                    'verification': ref.verification,
+                })
+            return resolved
+
+    def set_verification(self, ref_id: str, verification: str) -> Record:
+        _require_choice(verification, VERIFICATION_STATES, 'verification')
+        with self._db.session() as session:
+            reference = session.get(LegalReference, ref_id)
+            if reference is None:
+                raise LookupError(f"references record not found: {ref_id}")
+            reference.verification = verification
+            session.flush()
+            return reference.to_dict()
+
+
+class SqlAnalysisRepository:
+    # Load clauses and their reference links up front (2 extra queries, not one per clause)
+    WITH_CLAUSES = (selectinload(Analysis.clauses).selectinload(Clause.references),)
+
+    def __init__(self, db: Database, references: SqlReferenceRepository,
+                 parser: ClauseParser) -> None:
+        self._db = db
+        self._references = references
+        self._parser = parser
+
+    @staticmethod
+    def compute_contract_hash(contract_text: str, context: str = '') -> str:
+        return AnalysisRepository.compute_contract_hash(contract_text, context)
+
+    def _require(self, session: Session, analysis_id: str) -> Analysis:
+        analysis = session.get(Analysis, analysis_id, options=self.WITH_CLAUSES)
+        if analysis is None:
+            raise LookupError(f"analyses record not found: {analysis_id}")
+        return analysis
+
+    @staticmethod
+    def _newest_first(query):
+        return query.order_by(Analysis.created_at.desc(), Analysis.id.desc())
+
+    # Writing
+
+    def create(self, owner_id: str, filename: str, contract_text: str,
+               context: str = '') -> Record:
+        """Record a new analysis in 'processing' state before the AI runs."""
+        with self._db.session() as session:
+            if session.get(User, owner_id) is None:
+                raise LookupError(f"users record not found: {owner_id}")
+            number = session.scalar(select(ANALYSIS_ID_SEQUENCE.next_value()))
+            analysis = Analysis(
+                id=_format_id('an', number),
+                owner_id=owner_id,
+                status='processing',
+                filename=str(filename or ''),
+                context=str(context or ''),
+                contract_text=contract_text,
+                contract_hash=self.compute_contract_hash(contract_text, context),
+                clauses=[],
+            )
+            session.add(analysis)
+            session.flush()
+            session.refresh(analysis, ['created_at'])
+            return analysis.to_dict()
+
+    def complete(self, analysis_id: str, ai_clauses: List[Record]) -> Record:
+        """Store the AI-flagged clauses and mark the analysis done.
+
+        Accepts clauses in the shape returned by the logic layer (see
+        AnalysisRepository.complete). Every clause is validated before anything is
+        written, and the references, clauses and status are saved in one transaction.
+        """
+        with self._db.session() as session:
+            analysis = self._require(session, analysis_id)
+            new_references: Dict[str, Record] = {}
+            clauses = [self._parser.normalise_clause(index, raw, new_references)
+                       for index, raw in enumerate(ai_clauses, start=1)]
+
+            self._references.add_many_in(session, list(new_references.values()))
+
+            # Replace any earlier clauses; flush the deletes first so positions can be reused
+            analysis.clauses.clear()
+            session.flush()
+            analysis.clauses.extend(Clause.from_dict(index, clause)
+                                    for index, clause in enumerate(clauses, start=1))
+            analysis.status = 'done'
+            session.flush()
+            return analysis.to_dict()
+
+    def fail(self, analysis_id: str) -> Record:
+        with self._db.session() as session:
+            analysis = self._require(session, analysis_id)
+            analysis.status = 'failed'
+            session.flush()
+            return analysis.to_dict()
+
+    def delete(self, analysis_id: str) -> Record:
+        """Permanently remove an analysis. Returns the deleted record.
+        Shared legal references are kept because other analyses may cite them."""
+        with self._db.session() as session:
+            analysis = self._require(session, analysis_id)
+            deleted = analysis.to_dict()
+            session.delete(analysis)
+            return deleted
+
+    # Reading
+
+    def get(self, analysis_id: str) -> Optional[Record]:
+        with self._db.session() as session:
+            analysis = session.get(Analysis, analysis_id, options=self.WITH_CLAUSES)
+            return analysis.to_dict() if analysis else None
+
+    def find_by_hash(self, owner_id: str, contract_hash: str) -> Optional[Record]:
+        query = self._newest_first(
+            select(Analysis).options(*self.WITH_CLAUSES)
+            .where(Analysis.owner_id == owner_id,
+                   Analysis.contract_hash == contract_hash,
+                   Analysis.status == 'done')).limit(1)
+        with self._db.session() as session:
+            analysis = session.scalar(query)
+            return analysis.to_dict() if analysis else None
+
+    def list(self, owner_id: Optional[str] = None,
+             status: Optional[str] = None,
+             risk_level: Optional[str] = None) -> List[Record]:
+        """Newest first. risk_level keeps only analyses with at least one clause at that level."""
+        query = select(Analysis).options(*self.WITH_CLAUSES)
+        if status is not None:
+            query = query.where(Analysis.status == _require_choice(status, ANALYSIS_STATUSES, 'status'))
+        if risk_level is not None:
+            level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
+            query = query.where(Analysis.clauses.any(Clause.risk_level == level))
+        if owner_id is not None:
+            query = query.where(Analysis.owner_id == owner_id)
+        with self._db.session() as session:
+            return [analysis.to_dict() for analysis in session.scalars(self._newest_first(query))]
+
+    def filter_clauses_by_risk(self, analysis_id: str, risk_level: str) -> List[Record]:
+        level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
+        with self._db.session() as session:
+            analysis = self._require(session, analysis_id)
+            return [clause.to_dict() for clause in analysis.clauses if clause.risk_level == level]
 
 
 class DataManager:
