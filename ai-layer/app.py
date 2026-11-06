@@ -5,7 +5,6 @@ Handles clause detection, risk assessment, case law research, and workaround gen
 """
 
 import os
-import re
 import json
 import asyncio
 import tempfile
@@ -30,8 +29,8 @@ except ImportError:
     Document = None
 
 # AI and Web Search
-from openai import OpenAI
 from firecrawl import FirecrawlApp
+import ai_service
 
 load_dotenv()
 
@@ -39,24 +38,7 @@ app = Flask(__name__)
 app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # 50MB max upload
 
 # Configuration
-OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 FIRECRAWL_API_KEY = os.getenv('FIRECRAWL_API_KEY')
-OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
-
-# Free/OpenRouter models to try in failover order
-# Verify current availability at: https://openrouter.ai/models?q=:free
-FALLBACK_MODELS = [
-    'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'google/gemma-pro-1.5-2b-it:free',
-    'mistralai/mistral-7b-instruct-v0.3:free',
-    'qwen/qwen-2.5-7b-instruct:free',
-    'google/gemma-2-9b-it:free',
-    'microsoft/phi-3-mini-128k-instruct:free',
-    'meta-llama/llama-3.2-3b-instruct:free',
-    'nousresearch/hermes-3-llama-3.1-8b:free'
-]
-
-PRIMARY_MODEL = 'poolside/laguna-s-2.1:free'
 
 
 @dataclass
@@ -69,58 +51,6 @@ class FlaggedClause:
     workaround: str
     legal_references: List[Dict[str, str]]
     line_number: Optional[int] = None
-
-
-def get_openrouter_client() -> OpenAI:
-    """Create OpenRouter client."""
-    if not OPENROUTER_API_KEY:
-        raise ValueError("OPENROUTER_API_KEY not configured")
-    return OpenAI(
-        base_url=OPENROUTER_BASE_URL,
-        api_key=OPENROUTER_API_KEY
-    )
-
-
-def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
-    """
-    Call AI with automatic failover through available models.
-    Skips unavailable models (404) immediately and tries next.
-    Returns response text or raises exception if all models fail.
-    """
-    client = get_openrouter_client()
-    
-    # Try primary model first, then fallbacks
-    models_to_try = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
-    
-    last_error = None
-    for model in models_to_try:
-        for attempt in range(max_retries):
-            try:
-                print(f"  Trying model: {model} (attempt {attempt + 1})")
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=0.3,
-                    max_tokens=4096
-                )
-                content = response.choices[0].message.content
-                if content:
-                    print(f"  ✓ Success with {model}")
-                    return content
-            except Exception as e:
-                error_str = str(e)
-                last_error = e
-                # Skip 404 (model unavailable) immediately - no retry
-                if '404' in error_str or 'unavailable' in error_str.lower():
-                    print(f"  ⏭ Model {model} unavailable (404), skipping...")
-                    break  # Break inner retry loop, try next model
-                print(f"  ✗ Failed with {model}: {error_str[:100]}")
-                continue
-    
-    raise RuntimeError(
-        f"All AI models are currently unavailable. Last error: {last_error}. "
-        "Please try again later."
-    )
 
 
 def extract_text_from_document(file_path: str) -> str:
@@ -202,22 +132,12 @@ CONTRACT TEXT:
 
 Return JSON array of flagged clauses."""
 
-    response = call_ai_with_failover([
+    response = ai_service.call_ai_with_failover([
         {'role': 'system', 'content': system_prompt},
         {'role': 'user', 'content': user_prompt}
     ])
     
-    # Parse JSON from response
-    try:
-        # Extract JSON if wrapped in markdown
-        json_match = re.search(r'\[.*\]', response, re.DOTALL)
-        if json_match:
-            clauses = json.loads(json_match.group())
-            return clauses if isinstance(clauses, list) else []
-        return []
-    except json.JSONDecodeError:
-        print("Failed to parse AI response as JSON")
-        return []
+    return ai_service.parse_ai_response(response, 'clause detection')
 
 
 def research_clause_with_firecrawl(clause: Dict) -> List[Dict[str, str]]:
@@ -292,15 +212,12 @@ Return ONLY a valid JSON array with these exact keys:
 Return JSON array with enhanced workaround fields."""
 
     try:
-        response = call_ai_with_failover([
+        response = ai_service.call_ai_with_failover([
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': user_prompt}
         ])
         
-        json_match = re.search(r'\[.*\]', response, re.DOTALL)
-        if json_match:
-            enhanced = json.loads(json_match.group())
-            return enhanced if isinstance(enhanced, list) else clauses
+        return ai_service.parse_ai_response(response, 'workaround enhancement')
     except Exception as e:
         print(f"Workaround enhancement failed: {e}")
     
@@ -387,9 +304,10 @@ def health_check():
     working_models = []
     failed_models = []
     
-    if OPENROUTER_API_KEY:
-        client = get_openrouter_client()
-        all_models = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
+    primary, fallbacks = ai_service.configured_models()
+    if os.getenv('OPENROUTER_API_KEY'):
+        client = ai_service.get_openrouter_client()
+        all_models = ([primary] if primary else []) + fallbacks
         
         for model in all_models[:4]:  # Test top 4 models only
             try:
@@ -406,11 +324,11 @@ def health_check():
     status = 'healthy' if working_models else 'degraded'
     return jsonify({
         'status': status,
-        'openrouter_configured': bool(OPENROUTER_API_KEY),
+        'openrouter_configured': bool(os.getenv('OPENROUTER_API_KEY')),
         'firecrawl_configured': bool(FIRECRAWL_API_KEY),
         'working_models': working_models,
         'failed_models': failed_models,
-        'primary_model': PRIMARY_MODEL,
+        'primary_model': primary,
         'timestamp': datetime.now().isoformat()
     })
 

@@ -27,6 +27,7 @@ RUN pip install --no-cache-dir \
 
 # Copy logic layer application
 COPY logic-layer/app.py /app/
+COPY ai-layer/ai_service.py /app/
 COPY data-layer/data_manager.py /app/
 
 # Create data directory

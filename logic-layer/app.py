@@ -5,7 +5,6 @@ Handles clause detection, risk assessment, case law research, and workaround gen
 """
 
 import os
-import re
 import sys
 import json
 import asyncio
@@ -38,8 +37,11 @@ except ImportError:
     Document = None
 
 # AI and Web Search
-from openai import OpenAI
 from firecrawl import FirecrawlApp
+from openai.types.chat import ChatCompletionMessageParam
+
+sys.path.append(str(Path(__file__).resolve().parent.parent / 'ai-layer'))
+import ai_service
 
 # Data layer: in Docker data_manager.py is copied next to this file;
 # when run locally it lives in ../data-layer
@@ -71,13 +73,58 @@ app.config.update(
 )
 
 VALID_RISK_LEVELS = ('HIGH', 'MEDIUM', 'LOW')
+TELEGRAM_MEDIUM_COUNT_CHAT_ID = "667740965"
+TELEGRAM_HIGH_COUNT_CHAT_ID = "1116849976"
+TELEGRAM_GROUP_CHAT_ID = "-5212170665"
+
+
+def _send_telegram_message(chat_id: str, text: str, kind: str,
+                           reply_markup: Optional[Dict] = None) -> None:
+    token = os.getenv("TELEGRAM_BOT_TOKEN")
+    if not token:
+        logger.error("TELEGRAM_BOT_TOKEN not set; cannot send Telegram %s notification", kind)
+        return
+
+    payload: Dict[str, Any] = {"chat_id": chat_id, "text": text}
+    if reply_markup is not None:
+        payload["reply_markup"] = reply_markup
+    try:
+        result = requests.post(
+            f"https://api.telegram.org/bot{token}/sendMessage", json=payload, timeout=10
+        )
+    except requests.RequestException as error:
+        logger.error("Failed to send Telegram %s notification (%s)", kind, type(error).__name__)
+        return
+
+    try:
+        body = result.json()
+    except ValueError:
+        body = None
+
+    if not 200 <= result.status_code < 300 or not isinstance(body, dict) or body.get('ok') is not True:
+        code = body.get('error_code') if isinstance(body, dict) else None
+        if not isinstance(code, int):
+            code = result.status_code
+        reasons = {
+            400: 'check the recipient chat ID and bot membership',
+            401: 'check TELEGRAM_BOT_TOKEN',
+            403: 'check bot membership and that the recipient has started and not blocked the bot',
+            429: 'Telegram rate limit exceeded',
+        }
+        reason = reasons.get(code, 'check Telegram configuration or service availability')
+        logger.error("Telegram rejected %s notification (HTTP %s, error %s): %s",
+                     kind, result.status_code, code, reason)
+        return
+    logger.info("Telegram %s notification sent", kind)
 
 
 def send_telegram_notification(total_flagged: int, user_id: str, clauses: List[Dict]) -> None:
     """Send Telegram notification when flagged clauses exceed thresholds."""
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not token:
-        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping notification")
+    if total_flagged > 8:
+        chat_id = TELEGRAM_HIGH_COUNT_CHAT_ID
+    elif total_flagged > 6:
+        chat_id = TELEGRAM_MEDIUM_COUNT_CHAT_ID
+    else:
         return
 
     high_risk = sum(1 for clause in clauses if clause.get('risk_level') == 'HIGH')
@@ -86,20 +133,9 @@ def send_telegram_notification(total_flagged: int, user_id: str, clauses: List[D
     user = get_session_user()
     user_name = user['username'] if user else 'Unknown'
 
-    don_id = "667740965"
-    man_id = "1116849976"
-    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
-
-    if total_flagged > 8:
-        chat_id = man_id
-    elif total_flagged > 6:
-        chat_id = don_id
-    else:
-        return
-
-    payload = {
-        "chat_id": chat_id,
-        "text": (
+    _send_telegram_message(
+        chat_id,
+        (
             "Contract clause analysis completed\n"
             f"User ID: {user_id}\n"
             f"Username: {user_name}\n"
@@ -107,58 +143,26 @@ def send_telegram_notification(total_flagged: int, user_id: str, clauses: List[D
             f"High risk: {high_risk}\n"
             f"Medium Risk: {medium_risk}\n"
             f"Low risk: {low_risk}"
-        )
-    }
-    try:
-        results = requests.get(url_req, params=payload, timeout=10)
-        logger.info("Telegram notification sent: %s", results.json())
-    except Exception as exc:
-        logger.error("Failed to send Telegram notification: %s", exc)
+        ),
+        'clause',
+    )
 
 def send_generic_msg(text):
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not token:
-        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping notification")
-        return
-    inf_group_id = "-5212170665"
-    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
-    
-    payload = {
-        "chat_id": inf_group_id,
-        "text": text,
-    }
-
-    results = requests.post(url_req, json=payload)
-    print(results.json())
+    _send_telegram_message(TELEGRAM_GROUP_CHAT_ID, text, 'generic')
 
 def send_telegram_error_notification(error_message: str) -> None:
     """Send AI error notifications to the INF group chat."""
-    token = os.getenv("TELEGRAM_BOT_TOKEN")
-    if not token:
-        logger.warning("TELEGRAM_BOT_TOKEN not set; skipping error notification")
-        return
-
-    inf_group_id = "-5212170665"
-    url_req = f"https://api.telegram.org/bot{token}/sendMessage"
-
-    payload = {
-        "chat_id": inf_group_id,
-        "text": f"⚠️ AI Processing Error\n\n{error_message}",
-        "parse_mode": "Markdown",
-        "reply_markup": {
-            "inline_keyboard": [
-                [
-                    {"text": "✅ Fix", "callback_data": "accept"},
-                    {"text": "❌ Stop", "callback_data": "reject"}
-                ]
-            ]
-        }
-    }
-    try:
-        results = requests.get(url_req, params=payload, timeout=10)
-        logger.info("Telegram error notification sent: %s", results.json())
-    except Exception as exc:
-        logger.error("Failed to send Telegram error notification: %s", exc)
+    _send_telegram_message(
+        TELEGRAM_GROUP_CHAT_ID,
+        f"⚠️ AI Processing Error\n\n{error_message}",
+        'AI error',
+        reply_markup={
+            "inline_keyboard": [[
+                {"text": "✅ Fix", "callback_data": "accept"},
+                {"text": "❌ Stop", "callback_data": "reject"},
+            ]]
+        },
+    )
 
 def execute_vscode_output(command):
     """Triggers the specific action inside VS Code based on your phone's text."""
@@ -409,24 +413,7 @@ def logout():
     return jsonify({'message': 'Signed out'})
 
 # Configuration
-OPENROUTER_API_KEY = os.getenv('OPENROUTER_API_KEY')
 FIRECRAWL_API_KEY = os.getenv('FIRECRAWL_API_KEY')
-OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
-
-# Free/OpenRouter models to try in failover order
-# Verify current availability at: https://openrouter.ai/models?q=:free
-FALLBACK_MODELS = [
-    'nvidia/nemotron-3-ultra-550b-a55b:free',
-    'google/gemma-pro-1.5-2b-it:free',
-    'mistralai/mistral-7b-instruct-v0.3:free',
-    'qwen/qwen-2.5-7b-instruct:free',
-    'google/gemma-2-9b-it:free',
-    'microsoft/phi-3-mini-128k-instruct:free',
-    'meta-llama/llama-3.2-3b-instruct:free',
-    'nousresearch/hermes-3-llama-3.1-8b:free',
-]
-
-PRIMARY_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free'
 
 
 @dataclass
@@ -441,85 +428,22 @@ class FlaggedClause:
     line_number: Optional[int] = None
 
 
-def get_openrouter_client() -> OpenAI:
-    """Create OpenRouter client."""
-    if not OPENROUTER_API_KEY:
-        raise ValueError("OPENROUTER_API_KEY not configured")
-    return OpenAI(
-        base_url=OPENROUTER_BASE_URL,
-        api_key=OPENROUTER_API_KEY
-    )
-
-
-def _classify_ai_error(error: Exception) -> str:
-    """Classify AI error into a user-friendly category for Telegram notifications."""
-    error_str = str(error).lower()
-    
-    if 'context_length' in error_str or 'maximum context' in error_str or 'too long' in error_str:
-        return 'Context length exceeded - document too large for AI processing'
-    if 'rate_limit' in error_str or '429' in error_str or 'quota' in error_str:
-        return 'Rate limit exceeded - too many requests'
-    if '404' in error_str or 'not found' in error_str:
-        return 'AI model unavailable'
-    if 'timeout' in error_str or 'timed out' in error_str:
-        return 'AI request timed out'
-    if 'authentication' in error_str or '401' in error_str or '403' in error_str:
-        return 'AI authentication failed'
-    if 'invalid' in error_str or 'malformed' in error_str:
-        return 'Invalid request to AI service'
-    return f'AI processing error: {str(error)[:200]}'
-
-
-def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
-    """
-    Call AI with automatic failover through available models.
-    Skips unavailable models (404) immediately and tries next.
-    Sends Telegram notification on critical errors.
-    Returns response text or raises exception if all models fail.
-    """
-    client = get_openrouter_client()
-    
-    # Try primary model first, then fallbacks
-    models_to_try = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
-    
-    last_error = None
-    error_category = None
-    for model in models_to_try:
-        for attempt in range(max_retries):
-            try:
-                print(f"  Trying model: {model} (attempt {attempt + 1})")
-                response = client.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    temperature=0.3,
-                    max_tokens=4096
-                )
-                content = response.choices[0].message.content
-                if content:
-                    print(f"  ✓ Success with {model}")
-                    return content
-            except Exception as e:
-                error_str = str(e)
-                last_error = e
-                error_category = _classify_ai_error(e)
-                # Skip 404 (model unavailable) immediately - no retry
-                if '404' in error_str or 'unavailable' in error_str.lower():
-                    print(f"  ⏭ Model {model} unavailable (404), skipping...")
-                    break  # Break inner retry loop, try next model
-                print(f"  ✗ Failed with {model}: {error_str[:100]}")
-                continue
-    
-    # Send Telegram notification for AI failures
-    if error_category:
-        send_telegram_error_notification(error_category)
-        #user_input, last_update_id = wait_for_single_reply(last_update_id)
-        #execute_vscode_output(user_input)
-        
-    
-    raise RuntimeError(
-        f"All AI models are currently unavailable. Last error: {last_error}. "
-        "Please try again later."
-    )
+def call_ai_with_failover(messages: List[ChatCompletionMessageParam], max_retries: int = 2) -> str:
+    """Report primary and terminal AI errors while retaining model failover."""
+    try:
+        return ai_service.call_ai_with_failover(
+            messages, max_retries,
+            on_primary_failure=lambda error: send_telegram_error_notification(str(error)),
+        )
+    except ai_service.AIServiceError as error:
+        send_telegram_error_notification(str(error))
+        raise
+    except Exception as error:
+        logger.exception("Unexpected AI service failure")
+        send_telegram_error_notification(
+            f'Unexpected AI service failure ({type(error).__name__})'
+        )
+        raise
 
 
 def extract_text_from_document(file_path: str) -> str:
@@ -583,17 +507,11 @@ Return JSON array of flagged clauses."""
         {'role': 'user', 'content': user_prompt}
     ])
     
-    # Parse JSON from response
     try:
-        # Extract JSON if wrapped in markdown
-        json_match = re.search(r'\[.*\]', response, re.DOTALL)
-        if json_match:
-            clauses = json.loads(json_match.group())
-            return clauses if isinstance(clauses, list) else []
-        return []
-    except json.JSONDecodeError:
-        print("Failed to parse AI response as JSON")
-        return []
+        return ai_service.parse_ai_response(response, 'clause detection')
+    except ai_service.AIServiceError as error:
+        send_telegram_error_notification(str(error))
+        raise
 
 
 def research_clause_with_firecrawl(clause: Dict) -> List[Dict[str, str]]:
@@ -617,7 +535,10 @@ def research_clause_with_firecrawl(clause: Dict) -> List[Dict[str, str]]:
                 })
         return references
     except Exception as e:
-        print(f"Firecrawl search failed: {e}")
+        logger.warning("Firecrawl research failed: %s", ai_service.classify_error(e))
+        send_telegram_error_notification(
+            f'Firecrawl research failed: {ai_service.classify_error(e)}'
+        )
         return []
 
 
@@ -640,12 +561,15 @@ Return JSON array with enhanced workaround fields."""
             {'role': 'user', 'content': user_prompt}
         ])
         
-        json_match = re.search(r'\[.*\]', response, re.DOTALL)
-        if json_match:
-            enhanced = json.loads(json_match.group())
-            return enhanced if isinstance(enhanced, list) else clauses
-    except Exception as e:
-        print(f"Workaround enhancement failed: {e}")
+    except Exception:
+        logger.warning("Workaround enhancement failed; retaining original clauses")
+        return clauses
+
+    try:
+        return ai_service.parse_ai_response(response, 'workaround enhancement')
+    except ai_service.AIServiceError as error:
+        logger.warning("%s", error)
+        send_telegram_error_notification(str(error))
     
     return clauses
 
@@ -674,7 +598,14 @@ def analyze_contract():
         try:
             # Step 1: Extract text
             print("📄 Extracting text from document...")
-            contract_text = extract_text_from_document(tmp_path)
+            try:
+                contract_text = extract_text_from_document(tmp_path)
+            except Exception as error:
+                logger.exception("Document text extraction failed")
+                send_telegram_error_notification(
+                    f'Document text extraction failed ({type(error).__name__})'
+                )
+                raise
 
             if not contract_text.strip():
                 return jsonify({'error': 'Could not extract text from document'}), 400
@@ -1037,9 +968,10 @@ def health_check():
     working_models = []
     failed_models = []
     
-    if OPENROUTER_API_KEY:
-        client = get_openrouter_client()
-        all_models = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
+    primary, fallbacks = ai_service.configured_models()
+    if os.getenv('OPENROUTER_API_KEY'):
+        client = ai_service.get_openrouter_client()
+        all_models = ([primary] if primary else []) + fallbacks
         
         for model in all_models[:4]:  # Test top 4 models only
             try:
@@ -1056,11 +988,11 @@ def health_check():
     status = 'healthy' if working_models else 'degraded'
     return jsonify({
         'status': status,
-        'openrouter_configured': bool(OPENROUTER_API_KEY),
+        'openrouter_configured': bool(os.getenv('OPENROUTER_API_KEY')),
         'firecrawl_configured': bool(FIRECRAWL_API_KEY),
         'working_models': working_models,
         'failed_models': failed_models,
-        'primary_model': PRIMARY_MODEL,
+        'primary_model': primary,
         'timestamp': datetime.now().isoformat()
     })
 
