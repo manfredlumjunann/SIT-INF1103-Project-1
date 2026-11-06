@@ -12,10 +12,14 @@ from pathlib import Path
 from typing import Any, Dict, Iterator, List, Optional, Sequence, Union
 from urllib.parse import urlparse
 
-from sqlalchemy import create_engine, text
+from sqlalchemy import (CheckConstraint, DateTime, ForeignKey, Index, Integer, MetaData,
+                        Text, UniqueConstraint, create_engine, func, text)
+from sqlalchemy import Sequence as DbSequence
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import (DeclarativeBase, Mapped, Session, mapped_column, relationship,
+                            sessionmaker)
 
 logger = logging.getLogger(__name__)
 
@@ -284,6 +288,190 @@ class Database:
 
     def __repr__(self) -> str:
         return f'Database({self.safe_url!r})'
+
+# Database models: one class per table. to_dict() returns the same shape as the
+# JSON records, so the rest of the app does not notice which storage is in use.
+
+def _in_list(column: str, allowed: Sequence[str]) -> str:
+    """SQL for a CHECK constraint limiting a column to the allowed values."""
+    values = ', '.join(f"'{value}'" for value in allowed)
+    return f'{column} IN ({values})'
+
+
+def _iso_utc(moment: datetime) -> str:
+    return moment.astimezone(timezone.utc).isoformat()
+
+
+class Base(DeclarativeBase):
+    # Fixed constraint names so Alembic migrations stay identical on every machine
+    metadata = MetaData(naming_convention={
+        'ix': 'ix_%(column_0_label)s',
+        'uq': 'uq_%(table_name)s_%(column_0_name)s',
+        'ck': 'ck_%(table_name)s_%(constraint_name)s',
+        'fk': 'fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s',
+        'pk': 'pk_%(table_name)s',
+    })
+
+
+# Numbers behind the readable ids (us_001, an_001); formatted by the repositories
+USER_ID_SEQUENCE = DbSequence('users_id_seq', metadata=Base.metadata)
+ANALYSIS_ID_SEQUENCE = DbSequence('analyses_id_seq', metadata=Base.metadata)
+
+
+class User(Base):
+    __tablename__ = 'users'
+    __table_args__ = (
+        CheckConstraint(f"username ~ '{USERNAME_PATTERN.pattern}'", name='username_format'),
+        CheckConstraint(_in_list('role', USER_ROLES), name='role'),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    username: Mapped[str] = mapped_column(Text, unique=True)
+    password_hash: Mapped[str] = mapped_column(Text)
+    role: Mapped[str] = mapped_column(Text, server_default='customer')
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    analyses: Mapped[List['Analysis']] = relationship(back_populates='owner')
+
+    def to_dict(self) -> Record:
+        return {
+            'id': self.id,
+            'username': self.username,
+            'password_hash': self.password_hash,
+            'role': self.role,
+            'created_at': _iso_utc(self.created_at),
+        }
+
+
+class LegalReference(Base):
+    __tablename__ = 'legal_references'
+    __table_args__ = (
+        CheckConstraint(_in_list('verification', VERIFICATION_STATES), name='verification'),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    url: Mapped[str] = mapped_column(Text, unique=True)
+    title: Mapped[str] = mapped_column(Text)
+    domain: Mapped[str] = mapped_column(Text)
+    verification: Mapped[str] = mapped_column(Text, server_default='unverified')
+
+    def to_dict(self) -> Record:
+        return {
+            'id': self.id,
+            'url': self.url,
+            'title': self.title,
+            'domain': self.domain,
+            'verification': self.verification,
+        }
+
+
+class Analysis(Base):
+    __tablename__ = 'analyses'
+    __table_args__ = (
+        CheckConstraint(_in_list('status', ANALYSIS_STATUSES), name='status'),
+        # Cache lookup (same owner + same contract and context); also serves owner-only lookups
+        Index('ix_analyses_owner_id_contract_hash', 'owner_id', 'contract_hash'),
+    )
+
+    id: Mapped[str] = mapped_column(Text, primary_key=True)
+    owner_id: Mapped[str] = mapped_column(ForeignKey('users.id'))
+    status: Mapped[str] = mapped_column(Text, server_default='processing')
+    filename: Mapped[str] = mapped_column(Text, server_default='')
+    context: Mapped[str] = mapped_column(Text, server_default='')
+    contract_text: Mapped[str] = mapped_column(Text)
+    contract_hash: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    owner: Mapped[User] = relationship(back_populates='analyses')
+    clauses: Mapped[List['Clause']] = relationship(
+        back_populates='analysis', order_by='Clause.position',
+        cascade='all, delete-orphan', passive_deletes=True)
+
+    def counts(self) -> Dict[str, int]:
+        """Clauses per risk level, worked out from the clauses so it cannot go stale."""
+        counts = {level.lower(): 0 for level in RISK_LEVELS}
+        for clause in self.clauses:
+            counts[clause.risk_level.lower()] += 1
+        return counts
+
+    def to_dict(self) -> Record:
+        return {
+            'id': self.id,
+            'owner_id': self.owner_id,
+            'status': self.status,
+            'filename': self.filename,
+            'context': self.context,
+            'contract_text': self.contract_text,
+            'contract_hash': self.contract_hash,
+            'counts': self.counts(),
+            'clauses': [clause.to_dict() for clause in self.clauses],
+            'created_at': _iso_utc(self.created_at),
+        }
+
+
+class Clause(Base):
+    __tablename__ = 'clauses'
+    __table_args__ = (
+        UniqueConstraint('analysis_id', 'position', name='uq_clauses_analysis_id_position'),
+        CheckConstraint(_in_list('risk_level', RISK_LEVELS), name='risk_level'),
+        CheckConstraint('position >= 1', name='position_positive'),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    analysis_id: Mapped[str] = mapped_column(ForeignKey('analyses.id', ondelete='CASCADE'))
+    position: Mapped[int] = mapped_column(Integer)  # 1-based order; shown as cl_<position>
+    clause_type: Mapped[str] = mapped_column(Text, server_default='Unspecified')
+    category: Mapped[Optional[Any]] = mapped_column(JSONB)  # passed through from the AI as-is
+    risk_level: Mapped[str] = mapped_column(Text)
+    clause_text: Mapped[str] = mapped_column(Text, server_default='')
+    location_page: Mapped[Optional[int]] = mapped_column(Integer)
+    location_clause_ref: Mapped[Optional[str]] = mapped_column(Text)
+    location_raw: Mapped[Optional[str]] = mapped_column(Text)
+    issue_description: Mapped[str] = mapped_column(Text, server_default='')
+    workaround: Mapped[str] = mapped_column(Text, server_default='')
+
+    analysis: Mapped[Analysis] = relationship(back_populates='clauses')
+    references: Mapped[List['ClauseReference']] = relationship(
+        back_populates='clause', order_by='ClauseReference.position',
+        cascade='all, delete-orphan', passive_deletes=True)
+
+    def to_dict(self) -> Record:
+        return {
+            'id': f'cl_{self.position}',
+            'clause_type': self.clause_type,
+            'category': self.category,
+            'risk_level': self.risk_level,
+            'clause_text': self.clause_text,
+            'location': {
+                'page': self.location_page,
+                'clause_ref': self.location_clause_ref,
+                'raw': self.location_raw,
+            },
+            'issue_description': self.issue_description,
+            'workaround': self.workaround,
+            'references': [link.to_dict() for link in self.references],
+        }
+
+
+class ClauseReference(Base):
+    """Links a clause to a legal reference, with the clause-specific snippet.
+    Shared references survive when an analysis (and its clauses) is deleted."""
+    __tablename__ = 'clause_references'
+    __table_args__ = (
+        CheckConstraint('position >= 1', name='position_positive'),
+    )
+
+    clause_id: Mapped[int] = mapped_column(
+        ForeignKey('clauses.id', ondelete='CASCADE'), primary_key=True)
+    position: Mapped[int] = mapped_column(Integer, primary_key=True)
+    reference_id: Mapped[str] = mapped_column(ForeignKey('legal_references.id'), index=True)
+    snippet: Mapped[str] = mapped_column(Text, server_default='')
+
+    clause: Mapped[Clause] = relationship(back_populates='references')
+    reference: Mapped[LegalReference] = relationship()
+
+    def to_dict(self) -> Record:
+        return {'ref_id': self.reference_id, 'snippet': self.snippet}
 
 # Shared helpers used by the user, analysis and reference functions
 
