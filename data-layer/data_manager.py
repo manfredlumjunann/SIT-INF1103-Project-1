@@ -216,44 +216,11 @@ class JsonStore:
         return f'{prefix}_{max(numbers, default=0) + 1:03d}'
 
 _default_store = JsonStore(DATA_DIR)
-_lock = _default_store.lock
 
 
 def init_storage(data_dir: Optional[Union[str, Path]] = None) -> Dict[str, int]:
     """Load every collection from disk into memory. Returns record counts."""
     return _default_store.load(data_dir)
-
-
-def _ensure_loaded() -> None:
-    _default_store.ensure_loaded()
-
-
-def _records(collection: str) -> List[Record]:
-    return _default_store.records(collection)
-
-
-def _write_collection(collection: str, records: List[Record]) -> None:
-    _default_store.write(collection, records)
-
-
-def _append(collection: str, record: Record) -> Record:
-    return _default_store.append(collection, record)
-
-
-def _update(collection: str, record_id: str, changes: Record) -> Record:
-    return _default_store.update(collection, record_id, changes)
-
-
-def _find(collection: str, record_id: str) -> Optional[Record]:
-    return _default_store.find(collection, record_id)
-
-
-def _require(collection: str, record_id: str) -> Record:
-    return _default_store.require(collection, record_id)
-
-
-def _next_id(collection: str) -> str:
-    return _default_store.next_id(collection)
 
 # Shared helpers used by the user, analysis and reference functions
 
@@ -354,167 +321,6 @@ def list_users() -> List[Record]:
     """Every user, ordered by username."""
     return _users.list()
 
-# Analyses and clauses
-
-def compute_contract_hash(contract_text: str, context: str = '') -> str:
-    """Identical contract text AND context produce the same hash, so a repeat
-    request can reuse a saved result while a new question forces a rescan."""
-    payload = json.dumps([contract_text, context], ensure_ascii=False)
-    return hashlib.sha256(payload.encode('utf-8')).hexdigest()
-
-
-def create_analysis(owner_id: str, filename: str, contract_text: str,
-                    context: str = '') -> Record:
-    """Record a new analysis in 'processing' state before the AI runs."""
-    with _lock:
-        _ensure_loaded()
-        _require('users', owner_id)
-        record = {
-            'id': _next_id('analyses'),
-            'owner_id': owner_id,
-            'status': 'processing',
-            'filename': str(filename or ''),
-            'context': str(context or ''),
-            'contract_text': contract_text,
-            'contract_hash': compute_contract_hash(contract_text, context),
-            'counts': {'high': 0, 'medium': 0, 'low': 0},
-            'clauses': [],
-            'created_at': _now(),
-        }
-        return _append('analyses', record)
-
-
-def complete_analysis(analysis_id: str, ai_clauses: List[Record]) -> Record:
-    """Store the AI-flagged clauses and mark the analysis done.
-
-    Accepts clauses in the shape returned by the logic layer
-    (clause_type, risk_level, clause_text, issue_description, workaround,
-    line_number, legal_references[{title, url, summary}]). Every clause is
-    validated before anything is written.
-    """
-    with _lock:
-        _ensure_loaded()
-        _require('analyses', analysis_id)
-        new_references: Dict[str, Record] = {}
-        clauses = [_normalise_clause(index, raw, new_references)
-                   for index, raw in enumerate(ai_clauses, start=1)]
-
-        _references.add_many(list(new_references.values()))
-
-        counts = {level.lower(): 0 for level in RISK_LEVELS}
-        for clause in clauses:
-            counts[clause['risk_level'].lower()] += 1
-
-        return _update('analyses', analysis_id,
-                       {'status': 'done', 'clauses': clauses, 'counts': counts})
-
-
-def fail_analysis(analysis_id: str) -> Record:
-    with _lock:
-        _ensure_loaded()
-        return _update('analyses', analysis_id, {'status': 'failed'})
-
-
-def delete_analysis(analysis_id: str) -> Record:
-    """Permanently remove an analysis. Returns the deleted record.
-    Shared legal references are kept because other analyses may cite them."""
-    with _lock:
-        _ensure_loaded()
-        analysis = _require('analyses', analysis_id)
-        _write_collection('analyses', [a for a in _records('analyses') if a['id'] != analysis_id])
-        return copy.deepcopy(analysis)
-
-
-def get_analysis(analysis_id: str) -> Optional[Record]:
-    with _lock:
-        _ensure_loaded()
-        return copy.deepcopy(_find('analyses', analysis_id))
-
-
-def find_analysis_by_hash(owner_id: str, contract_hash: str) -> Optional[Record]:
-    with _lock:
-        _ensure_loaded()
-        matches = [a for a in _records('analyses')
-                   if a['owner_id'] == owner_id
-                   and a['contract_hash'] == contract_hash
-                   and a['status'] == 'done']
-        return _newest_first(matches)[0] if matches else None
-
-
-def list_analyses(owner_id: Optional[str] = None,
-                  status: Optional[str] = None,
-                  risk_level: Optional[str] = None) -> List[Record]:
-    """Newest first. risk_level keeps only analyses with at least one clause at that level."""
-    if status is not None:
-        _require_choice(status, ANALYSIS_STATUSES, 'status')
-    level = None
-    if risk_level is not None:
-        level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
-    with _lock:
-        _ensure_loaded()
-        matches = [a for a in _records('analyses')
-                   if (owner_id is None or a['owner_id'] == owner_id)
-                   and (status is None or a['status'] == status)
-                   and (level is None or a['counts'].get(level.lower(), 0) > 0)]
-        return _newest_first(matches)
-
-
-def filter_clauses_by_risk(analysis_id: str, risk_level: str) -> List[Record]:
-    level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
-    with _lock:
-        _ensure_loaded()
-        analysis = _require('analyses', analysis_id)
-        return [copy.deepcopy(c) for c in analysis['clauses'] if c['risk_level'] == level]
-
-
-def _normalise_clause(index: int, raw: Record, references: Dict[str, Record]) -> Record:
-    """Convert one AI clause into the stored schema, collecting its references."""
-    if not isinstance(raw, dict):
-        raise ValueError(f"Clause {index} is not an object")
-    risk_level = _require_choice(str(raw.get('risk_level', '')).strip().upper(),
-                                 RISK_LEVELS, 'risk_level')
-
-    clause_refs = []
-    for ref in raw.get('legal_references') or []:
-        url = str(ref.get('url') or '').strip() if isinstance(ref, dict) else ''
-        if not url:
-            continue
-        ref_id = ReferenceRepository.reference_id(url)
-        references.setdefault(ref_id, {
-            'id': ref_id,
-            'url': url,
-            'title': str(ref.get('title') or url),
-            'domain': ReferenceRepository.domain(url),
-            'verification': 'unverified',
-        })
-        clause_refs.append({'ref_id': ref_id, 'snippet': str(ref.get('summary') or '')})
-
-    return {
-        'id': f'cl_{index}',
-        'clause_type': str(raw.get('clause_type') or 'Unspecified'),
-        'category': raw.get('category'),
-        'risk_level': risk_level,
-        'clause_text': str(raw.get('clause_text') or ''),
-        'location': _parse_location(raw.get('line_number')),
-        'issue_description': str(raw.get('issue_description') or ''),
-        'workaround': str(raw.get('workaround') or ''),
-        'references': clause_refs,
-    }
-
-
-def _parse_location(raw: Any) -> Record:
-    """Best-effort parse of e.g. 'Page 2, Clause 3(f)'; the original is kept as raw."""
-    if raw is None or not str(raw).strip():
-        return {'page': None, 'clause_ref': None, 'raw': None}
-    text = str(raw).strip()
-    page = re.search(r'page\s*(\d+)', text, re.IGNORECASE)
-    clause = re.search(r'clause\s*([0-9A-Za-z().]+)', text, re.IGNORECASE)
-    return {
-        'page': int(page.group(1)) if page else None,
-        'clause_ref': clause.group(1).rstrip('.') if clause else None,
-        'raw': text,
-    }
-
 # References
 
 class ReferenceRepository:
@@ -591,3 +397,225 @@ def resolve_references(clause: Record) -> List[Record]:
 
 def set_reference_verification(ref_id: str, verification: str) -> Record:
     return _references.set_verification(ref_id, verification)
+
+# Clauses: converting AI output into the stored schema
+
+class ClauseParser:
+
+    @staticmethod
+    def parse_location(raw: Any) -> Record:
+        """Best-effort parse of e.g. 'Page 2, Clause 3(f)'; the original is kept as raw."""
+        if raw is None or not str(raw).strip():
+            return {'page': None, 'clause_ref': None, 'raw': None}
+        text = str(raw).strip()
+        page = re.search(r'page\s*(\d+)', text, re.IGNORECASE)
+        clause = re.search(r'clause\s*([0-9A-Za-z().]+)', text, re.IGNORECASE)
+        return {
+            'page': int(page.group(1)) if page else None,
+            'clause_ref': clause.group(1).rstrip('.') if clause else None,
+            'raw': text,
+        }
+
+    @staticmethod
+    def normalise_clause(index: int, raw: Record, references: Dict[str, Record]) -> Record:
+        """Convert one AI clause into the stored schema, collecting its references."""
+        if not isinstance(raw, dict):
+            raise ValueError(f"Clause {index} is not an object")
+        risk_level = _require_choice(str(raw.get('risk_level', '')).strip().upper(),
+                                     RISK_LEVELS, 'risk_level')
+
+        clause_refs = []
+        for ref in raw.get('legal_references') or []:
+            url = str(ref.get('url') or '').strip() if isinstance(ref, dict) else ''
+            if not url:
+                continue
+            ref_id = ReferenceRepository.reference_id(url)
+            references.setdefault(ref_id, {
+                'id': ref_id,
+                'url': url,
+                'title': str(ref.get('title') or url),
+                'domain': ReferenceRepository.domain(url),
+                'verification': 'unverified',
+            })
+            clause_refs.append({'ref_id': ref_id, 'snippet': str(ref.get('summary') or '')})
+
+        return {
+            'id': f'cl_{index}',
+            'clause_type': str(raw.get('clause_type') or 'Unspecified'),
+            'category': raw.get('category'),
+            'risk_level': risk_level,
+            'clause_text': str(raw.get('clause_text') or ''),
+            'location': ClauseParser.parse_location(raw.get('line_number')),
+            'issue_description': str(raw.get('issue_description') or ''),
+            'workaround': str(raw.get('workaround') or ''),
+            'references': clause_refs,
+        }
+
+# Analyses
+
+class AnalysisRepository:
+    COLLECTION = 'analyses'
+
+    def __init__(self, store: JsonStore, users: UserRepository,
+                 references: ReferenceRepository, parser: ClauseParser) -> None:
+        self._store = store
+        self._users = users
+        self._references = references
+        self._parser = parser
+
+    @staticmethod
+    def compute_contract_hash(contract_text: str, context: str = '') -> str:
+        """Identical contract text AND context produce the same hash, so a repeat
+        request can reuse a saved result while a new question forces a rescan."""
+        payload = json.dumps([contract_text, context], ensure_ascii=False)
+        return hashlib.sha256(payload.encode('utf-8')).hexdigest()
+
+    # Writing
+
+    def create(self, owner_id: str, filename: str, contract_text: str,
+               context: str = '') -> Record:
+        """Record a new analysis in 'processing' state before the AI runs."""
+        with self._store.lock:
+            self._store.ensure_loaded()
+            if self._users.get(owner_id) is None:
+                raise LookupError(f"users record not found: {owner_id}")
+            record = {
+                'id': self._store.next_id(self.COLLECTION),
+                'owner_id': owner_id,
+                'status': 'processing',
+                'filename': str(filename or ''),
+                'context': str(context or ''),
+                'contract_text': contract_text,
+                'contract_hash': self.compute_contract_hash(contract_text, context),
+                'counts': {'high': 0, 'medium': 0, 'low': 0},
+                'clauses': [],
+                'created_at': _now(),
+            }
+            return self._store.append(self.COLLECTION, record)
+
+    def complete(self, analysis_id: str, ai_clauses: List[Record]) -> Record:
+        """Store the AI-flagged clauses and mark the analysis done.
+
+        Accepts clauses in the shape returned by the logic layer
+        (clause_type, risk_level, clause_text, issue_description, workaround,
+        line_number, legal_references[{title, url, summary}]). Every clause is
+        validated before anything is written.
+        """
+        with self._store.lock:
+            self._store.ensure_loaded()
+            self._store.require(self.COLLECTION, analysis_id)
+            new_references: Dict[str, Record] = {}
+            clauses = [self._parser.normalise_clause(index, raw, new_references)
+                       for index, raw in enumerate(ai_clauses, start=1)]
+
+            self._references.add_many(list(new_references.values()))
+
+            counts = {level.lower(): 0 for level in RISK_LEVELS}
+            for clause in clauses:
+                counts[clause['risk_level'].lower()] += 1
+
+            return self._store.update(self.COLLECTION, analysis_id,
+                                      {'status': 'done', 'clauses': clauses, 'counts': counts})
+
+    def fail(self, analysis_id: str) -> Record:
+        with self._store.lock:
+            self._store.ensure_loaded()
+            return self._store.update(self.COLLECTION, analysis_id, {'status': 'failed'})
+
+    def delete(self, analysis_id: str) -> Record:
+        """Permanently remove an analysis. Returns the deleted record.
+        Shared legal references are kept because other analyses may cite them."""
+        with self._store.lock:
+            self._store.ensure_loaded()
+            analysis = self._store.require(self.COLLECTION, analysis_id)
+            remaining = [a for a in self._store.records(self.COLLECTION) if a['id'] != analysis_id]
+            self._store.write(self.COLLECTION, remaining)
+            return copy.deepcopy(analysis)
+
+    # Reading
+
+    def get(self, analysis_id: str) -> Optional[Record]:
+        with self._store.lock:
+            self._store.ensure_loaded()
+            return copy.deepcopy(self._store.find(self.COLLECTION, analysis_id))
+
+    def find_by_hash(self, owner_id: str, contract_hash: str) -> Optional[Record]:
+        with self._store.lock:
+            self._store.ensure_loaded()
+            matches = [a for a in self._store.records(self.COLLECTION)
+                       if a['owner_id'] == owner_id
+                       and a['contract_hash'] == contract_hash
+                       and a['status'] == 'done']
+            return _newest_first(matches)[0] if matches else None
+
+    def list(self, owner_id: Optional[str] = None,
+             status: Optional[str] = None,
+             risk_level: Optional[str] = None) -> List[Record]:
+        """Newest first. risk_level keeps only analyses with at least one clause at that level."""
+        if status is not None:
+            _require_choice(status, ANALYSIS_STATUSES, 'status')
+        level = None
+        if risk_level is not None:
+            level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
+        with self._store.lock:
+            self._store.ensure_loaded()
+            matches = [a for a in self._store.records(self.COLLECTION)
+                       if (owner_id is None or a['owner_id'] == owner_id)
+                       and (status is None or a['status'] == status)
+                       and (level is None or a['counts'].get(level.lower(), 0) > 0)]
+            return _newest_first(matches)
+
+    def filter_clauses_by_risk(self, analysis_id: str, risk_level: str) -> List[Record]:
+        level = _require_choice(str(risk_level).strip().upper(), RISK_LEVELS, 'risk_level')
+        with self._store.lock:
+            self._store.ensure_loaded()
+            analysis = self._store.require(self.COLLECTION, analysis_id)
+            return [copy.deepcopy(c) for c in analysis['clauses'] if c['risk_level'] == level]
+
+
+_analyses = AnalysisRepository(_default_store, _users, _references, ClauseParser())
+
+
+def compute_contract_hash(contract_text: str, context: str = '') -> str:
+    """Identical contract text AND context produce the same hash, so a repeat
+    request can reuse a saved result while a new question forces a rescan."""
+    return AnalysisRepository.compute_contract_hash(contract_text, context)
+
+
+def create_analysis(owner_id: str, filename: str, contract_text: str,
+                    context: str = '') -> Record:
+    """Record a new analysis in 'processing' state before the AI runs."""
+    return _analyses.create(owner_id, filename, contract_text, context)
+
+
+def complete_analysis(analysis_id: str, ai_clauses: List[Record]) -> Record:
+    """Store the AI-flagged clauses and mark the analysis done."""
+    return _analyses.complete(analysis_id, ai_clauses)
+
+
+def fail_analysis(analysis_id: str) -> Record:
+    return _analyses.fail(analysis_id)
+
+
+def delete_analysis(analysis_id: str) -> Record:
+    """Permanently remove an analysis. Returns the deleted record."""
+    return _analyses.delete(analysis_id)
+
+
+def get_analysis(analysis_id: str) -> Optional[Record]:
+    return _analyses.get(analysis_id)
+
+
+def find_analysis_by_hash(owner_id: str, contract_hash: str) -> Optional[Record]:
+    return _analyses.find_by_hash(owner_id, contract_hash)
+
+
+def list_analyses(owner_id: Optional[str] = None,
+                  status: Optional[str] = None,
+                  risk_level: Optional[str] = None) -> List[Record]:
+    """Newest first. risk_level keeps only analyses with at least one clause at that level."""
+    return _analyses.list(owner_id, status, risk_level)
+
+
+def filter_clauses_by_risk(analysis_id: str, risk_level: str) -> List[Record]:
+    return _analyses.filter_clauses_by_risk(analysis_id, risk_level)
