@@ -311,6 +311,27 @@ class UserRepository:
             record['id'] = self._store.next_id(self.COLLECTION)
             return self._store.append(self.COLLECTION, record)
 
+    def get(self, user_id: str) -> Optional[Record]:
+        with self._store.lock:
+            self._store.ensure_loaded()
+            return copy.deepcopy(self._store.find(self.COLLECTION, user_id))
+
+    def find_by_username(self, username: str) -> Optional[Record]:
+        username = self.normalise_username(username)
+        with self._store.lock:
+            self._store.ensure_loaded()
+            for user in self._store.records(self.COLLECTION):
+                if user['username'] == username:
+                    return copy.deepcopy(user)
+        return None
+
+    def list(self) -> List[Record]:
+        """Every user, ordered by username."""
+        with self._store.lock:
+            self._store.ensure_loaded()
+            users = sorted(self._store.records(self.COLLECTION), key=lambda u: u['username'])
+            return [copy.deepcopy(u) for u in users]
+
 
 _users = UserRepository(_default_store)
 
@@ -321,31 +342,17 @@ def create_user(username: str, password_hash: str, role: str = 'customer') -> Re
     return _users.create(username, password_hash, role)
 
 
-def _normalise_username(username: Any) -> str:
-    return UserRepository.normalise_username(username)
-
-
 def get_user(user_id: str) -> Optional[Record]:
-    with _lock:
-        _ensure_loaded()
-        return copy.deepcopy(_find('users', user_id))
+    return _users.get(user_id)
 
 
 def find_user_by_username(username: str) -> Optional[Record]:
-    username = _normalise_username(username)
-    with _lock:
-        _ensure_loaded()
-        for user in _records('users'):
-            if user['username'] == username:
-                return copy.deepcopy(user)
-    return None
+    return _users.find_by_username(username)
 
 
 def list_users() -> List[Record]:
     """Every user, ordered by username."""
-    with _lock:
-        _ensure_loaded()
-        return [copy.deepcopy(u) for u in sorted(_records('users'), key=lambda u: u['username'])]
+    return _users.list()
 
 # Analyses and clauses
 
