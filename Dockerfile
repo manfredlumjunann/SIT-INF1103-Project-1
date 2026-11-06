@@ -33,8 +33,9 @@ COPY logic-layer/app.py /app/
 COPY ai-layer/ai_service.py /app/
 COPY data-layer/data_manager.py /app/
 
-# Create data directory
-RUN mkdir -p /app/data
+# Database migrations (applied at container start, see CMD)
+COPY data-layer/alembic.ini /app/
+COPY data-layer/migrations /app/migrations
 
 # Copy IO layer files
 COPY io-layer/nginx.conf /etc/nginx/conf.d/default.conf
@@ -52,5 +53,6 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 # Expose nginx port
 EXPOSE 80
 
-# Use supervisor to manage both nginx and gunicorn
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+# Bring the database schema up to date, then use supervisor to manage nginx and gunicorn.
+# If the migration fails the container stops, so the error is visible in `docker compose logs`.
+CMD ["/bin/sh", "-c", "alembic -c /app/alembic.ini upgrade head && exec /usr/bin/supervisord -c /etc/supervisor/conf.d/supervisord.conf"]

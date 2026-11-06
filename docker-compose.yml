@@ -24,9 +24,6 @@ services:
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-contract_app}:${POSTGRES_PASSWORD:-contract_app_dev}@db:5432/${POSTGRES_DB:-contract_analyzer}
     ports:
       - "8080:80"
-    volumes:
-      # JSON storage stays in use until the data layer is switched to Postgres
-      - app-data:/app/data
     depends_on:
       db:
         condition: service_healthy
@@ -34,4 +31,3 @@ services:
 
 volumes:
   postgres-data:
-  app-data:

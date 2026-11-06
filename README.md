@@ -54,8 +54,15 @@ starts. A previously saved analysis may be returned from cache without calling
 the AI; use a different contract or context to exercise failover. If Firecrawl
 is not configured, its optional research is skipped.
 
-Run the integration tests with the Python dependencies installed:
+Run the integration tests with the Python dependencies installed
+(`pip install -r logic-layer/requirements.txt`). They need a throwaway Postgres
+database, because every test empties all tables:
 
 ```powershell
+docker run -d --rm --name test-db -p 55432:5432 -e POSTGRES_PASSWORD=test postgres:17
+$env:TEST_DATABASE_URL = "postgresql://postgres:test@localhost:55432/postgres"
 python -m unittest discover -s tests -v
+docker stop test-db
 ```
+
+Without `TEST_DATABASE_URL` the tests are skipped. They never use `DATABASE_URL`.
