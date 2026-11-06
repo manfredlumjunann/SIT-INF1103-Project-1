@@ -280,30 +280,49 @@ def _newest_first(records: List[Record]) -> List[Record]:
 
 # Users
 
+class UserRepository:
+    COLLECTION = 'users'
+
+    def __init__(self, store: JsonStore) -> None:
+        self._store = store
+
+    @staticmethod
+    def normalise_username(username: Any) -> str:
+        return str(username or '').strip().lower()
+
+    def create(self, username: str, password_hash: str, role: str = 'customer') -> Record:
+        """Create a user. Usernames are unique regardless of case and stored in lowercase.
+        The password must already be hashed by the caller."""
+        username = self.normalise_username(username)
+        if not USERNAME_PATTERN.match(username):
+            raise ValueError("Username must be 3-30 characters: letters, numbers, '.', '_' or '-'")
+        _require_choice(role, USER_ROLES, 'role')
+        record = {
+            'id': '',
+            'username': username,
+            'password_hash': _require_text(password_hash, 'password_hash'),
+            'role': role,
+            'created_at': _now(),
+        }
+        with self._store.lock:
+            self._store.ensure_loaded()
+            if any(u['username'] == username for u in self._store.records(self.COLLECTION)):
+                raise ValueError(f"Username already taken: {username}")
+            record['id'] = self._store.next_id(self.COLLECTION)
+            return self._store.append(self.COLLECTION, record)
+
+
+_users = UserRepository(_default_store)
+
+
 def create_user(username: str, password_hash: str, role: str = 'customer') -> Record:
     """Create a user. Usernames are unique regardless of case and stored in lowercase.
     The password must already be hashed by the caller."""
-    username = _normalise_username(username)
-    if not USERNAME_PATTERN.match(username):
-        raise ValueError("Username must be 3-30 characters: letters, numbers, '.', '_' or '-'")
-    _require_choice(role, USER_ROLES, 'role')
-    record = {
-        'id': '',
-        'username': username,
-        'password_hash': _require_text(password_hash, 'password_hash'),
-        'role': role,
-        'created_at': _now(),
-    }
-    with _lock:
-        _ensure_loaded()
-        if any(u['username'] == username for u in _records('users')):
-            raise ValueError(f"Username already taken: {username}")
-        record['id'] = _next_id('users')
-        return _append('users', record)
+    return _users.create(username, password_hash, role)
 
 
 def _normalise_username(username: Any) -> str:
-    return str(username or '').strip().lower()
+    return UserRepository.normalise_username(username)
 
 
 def get_user(user_id: str) -> Optional[Record]:
