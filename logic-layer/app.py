@@ -200,22 +200,52 @@ def wait_for_single_reply(last_update_id):
             print(f"Invalid Telegram response: {e}")
 
         time.sleep(1)
-def execute_vscode_output(command):
-    print(f"⚙️ VS Code is executing local task for: '{command}'")
-    
-    # Example Output Actions
+        
+def call_manual_fallback_ai(messages, user_input):
+
+    client = get_openrouter_client()
+
+    print(f"🔄 Trying manually selected model: {user_input}")
+
+    response = client.chat.completions.create(
+        model=user_input,
+        messages=messages,
+        temperature=0.3,
+        max_tokens=4096
+    )
+
+    content = response.choices[0].message.content
+
+    if not content:
+        raise RuntimeError("Backup AI returned an empty response")
+
+    print(f"✅ Manual fallback successful: {user_input}")
+
+    return content
+
+def execute_vscode_output(command, messages):
+    print(f"⚙️ Manual AI fallback requested: {command}")
+
     if command.lower() == "accept":
-        send_generic_message("Fixing...")
-        time.sleep(1)
-        send_generic_message("AI has been replaced")
-        
+        send_generic_message("🔄 Attempting manual AI recovery...")
+
+        try:
+            response = call_manual_fallback_ai(
+                messages,
+                user_input="nvidia/nemotron-3-ultra-550b-a55b:free"
+            )
+
+            send_generic_message("✅ Backup AI successfully recovered!")
+
+            return response
+
+        except Exception as e:
+            send_generic_message(f"❌ Backup AI failed: {str(e)[:200]}")
+            raise
+
     elif command.lower() == "reject":
-        send_generic_message("Well, golly..")
-        time.sleep(1)
-        send_generic_message("New code works and you rejected it")
-        
-    else:
-        send_generic_message(f"⚠️ *VS Code:* Unknown command '{command}'. Script closed anyway.")
+        send_generic_message("🛑 Manual recovery cancelled.")
+        return None
 
 def send_telegram_error_notification(error_message: str) -> None:
     """Send AI error notifications to the INF group chat."""
@@ -434,6 +464,7 @@ FALLBACK_MODELS = [
 PRIMARY_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free'
 
 
+
 @dataclass
 class FlaggedClause:
     """Represents a flagged contract clause."""
@@ -532,7 +563,13 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
 
         send_telegram_error_notification(error_category)
         t_user_input, last_update_id = wait_for_single_reply(last_update_id)
-        execute_vscode_output(t_user_input)
+        recovered_response = execute_vscode_output(
+            t_user_input,
+            messages
+        )
+
+        if recovered_response:
+            return recovered_response
         
     
     raise RuntimeError(
