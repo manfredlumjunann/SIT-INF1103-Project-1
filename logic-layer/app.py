@@ -223,7 +223,7 @@ def call_manual_fallback_ai(messages, user_input):
 
     return content
 
-def execute_vscode_output(command, messages):
+'''def execute_vscode_output(command, messages):
     print(f"⚙️ Manual AI fallback requested: {command}")
 
     if command.lower() == "accept":
@@ -245,7 +245,7 @@ def execute_vscode_output(command, messages):
 
     elif command.lower() == "reject":
         send_generic_message("🛑 Manual recovery cancelled.")
-        return None
+        return None'''
 
 def send_telegram_error_notification(error_message: str) -> None:
     """Send AI error notifications to the INF group chat."""
@@ -463,6 +463,7 @@ FALLBACK_MODELS = [
 
 PRIMARY_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free'
 
+MANUAL_BACKUP_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free'
 
 
 @dataclass
@@ -506,7 +507,8 @@ def _classify_ai_error(error: Exception) -> str:
     return f'AI processing error: {str(error)[:200]}'
 
 
-def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
+def call_ai_with_failover(messages: List[Dict], max_retries: int = 2, recovery_state: Optional[Dict] = None
+) -> str:
     """
     Call AI with automatic failover through available models.
     Skips unavailable models (404) immediately and tries next.
@@ -514,6 +516,18 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
     Returns response text or raises exception if all models fail.
     """
     client = get_openrouter_client()
+
+    if recovery_state is None:
+        recovery_state = {}
+
+    if recovery_state.get("manual_model"):
+
+        print("🔄 Using previously approved backup AI")
+
+        return call_manual_fallback_ai(
+            messages,
+            user_input=recovery_state["manual_model"]
+        )
     
     # Try primary model first, then fallbacks
     models_to_try = [PRIMARY_MODEL] + [m for m in FALLBACK_MODELS if m != PRIMARY_MODEL]
@@ -546,31 +560,45 @@ def call_ai_with_failover(messages: List[Dict], max_retries: int = 2) -> str:
                 continue
     
     # Send Telegram notification for AI failures
-    if error_category:
+    if not recovery_state.get("notification_sent"):
+        recovery_state["notification_sent"] = True
         token = os.getenv("TELEGRAM_BOT_TOKEN")
         if not token:
-            logger.warning("TELEGRAM_BOT_TOKEN not set; skipping notification")
-            return
+            raise RuntimeError("Telegram bot token not configured")
         url_req = f"https://api.telegram.org/bot{token}/getUpdates"
         try:
-            initial_res = requests.get(url_req, params={"offset": -1}, timeout=15).json()
-        except (requests.RequestException, ValueError) as e:
-            print(f"Telegram startup check failed: {e}")
+            initial_res = requests.get(url_req, params={"offset": -1},timeout=15).json()
+        except (requests.RequestException, ValueError):
             initial_res = {}
+
         last_update_id = 0
+
         if initial_res.get("result"):
-            last_update_id = initial_res["result"][0]["update_id"]
+            last_update_id = max(
+                item["update_id"]
+                for item in initial_res["result"]
+            )
 
         send_telegram_error_notification(error_category)
-        t_user_input, last_update_id = wait_for_single_reply(last_update_id)
-        recovered_response = execute_vscode_output(
-            t_user_input,
-            messages
-        )
 
-        if recovered_response:
-            return recovered_response
-        
+        t_user_input, last_update_id = wait_for_single_reply(last_update_id)
+
+        if t_user_input == "accept":
+            recovery_state["manual_model"] = MANUAL_BACKUP_MODEL
+            send_generic_message("🔄 Attempting manual AI recovery...")
+            try:
+                response = call_manual_fallback_ai(messages, user_input=MANUAL_BACKUP_MODEL)
+                send_generic_message("✅ Backup AI successfully recovered!")
+
+                return response
+            
+            except Exception as e:
+                send_generic_message(f"❌ Backup AI failed: {str(e)[:200]}")
+                raise
+
+        elif t_user_input == "reject":
+            send_generic_message("🛑 Manual recovery cancelled.")
+            raise RuntimeError("Manual AI recovery rejected by engineer")
     
     raise RuntimeError(
         f"All AI models are currently unavailable. Last error: {last_error}. "
@@ -609,7 +637,7 @@ def extract_text_from_document(file_path: str) -> str:
         raise ValueError(f"Unsupported format: {suffix}")
 
 
-def detect_clauses_with_ai(contract_text: str, context: str = '') -> List[Dict]:
+def detect_clauses_with_ai(contract_text: str, context: str = '',recovery_state: Optional[Dict] = None) -> List[Dict]:
     """Use AI to dynamically detect and categorize contract clauses."""
     
     system_prompt = """You are an expert contract lawyer and risk analyst. Analyze the contract text and identify ALL potentially problematic clauses.
@@ -637,7 +665,9 @@ Return JSON array of flagged clauses."""
     response = call_ai_with_failover([
         {'role': 'system', 'content': system_prompt},
         {'role': 'user', 'content': user_prompt}
-    ])
+    ],
+    recovery_state=recovery_state
+    )
     
     # Parse JSON from response
     try:
@@ -677,7 +707,7 @@ def research_clause_with_firecrawl(clause: Dict) -> List[Dict[str, str]]:
         return []
 
 
-def generate_workarounds_with_ai(clauses: List[Dict]) -> List[Dict]:
+def generate_workarounds_with_ai(clauses: List[Dict], recovery_state: Optional[Dict] = None) -> List[Dict]:
     """Enhance clauses with detailed workarounds using AI."""
     
     system_prompt = """You are a contract negotiation expert. For each flagged clause, provide a detailed, actionable workaround.
@@ -694,7 +724,9 @@ Return JSON array with enhanced workaround fields."""
         response = call_ai_with_failover([
             {'role': 'system', 'content': system_prompt},
             {'role': 'user', 'content': user_prompt}
-        ])
+        ],
+        recovery_state=recovery_state
+        )
         
         json_match = re.search(r'\[.*\]', response, re.DOTALL)
         if json_match:
@@ -747,9 +779,16 @@ def analyze_contract():
 
 def run_analysis_pipeline(contract_text: str, context: str) -> List[Dict]:
     """AI clause detection, case-law research and workaround enhancement."""
+
+    # Shared recovery state for this entire analysis
+    recovery_state = {
+        "notification_sent": False,
+        "manual_model": None
+    }
+
     # Step 2: AI clause detection
     print("🔍 Detecting clauses with AI...")
-    clauses = detect_clauses_with_ai(contract_text, context)
+    clauses = detect_clauses_with_ai(contract_text, context, recovery_state=recovery_state)
     if not clauses:
         return []
 
@@ -760,7 +799,7 @@ def run_analysis_pipeline(contract_text: str, context: str) -> List[Dict]:
 
     # Step 4: Enhance workarounds
     print("💡 Generating detailed workarounds...")
-    clauses = generate_workarounds_with_ai(clauses)
+    clauses = generate_workarounds_with_ai(clauses, recovery_state=recovery_state)
 
     # Ensure all required fields exist and risk levels are ones the system understands
     normalised = []
