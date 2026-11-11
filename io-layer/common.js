@@ -282,7 +282,8 @@ function normaliseRisk(clause) {
     return RISK_LEVELS.includes(level) ? level : 'unrated';
 }
 
-function renderClause(clause, index) {
+// renderComment(clause) can replace the read-only comment block (the admin page uses an editor).
+function renderClause(clause, index, renderComment = renderClauseComment) {
     if (!clause || typeof clause !== 'object') {
         throw new Error('Clause is not an object');
     }
@@ -312,7 +313,19 @@ function renderClause(clause, index) {
         references.forEach(ref => details.appendChild(renderReference(ref)));
         card.appendChild(details);
     }
+    const commentBlock = renderComment(clause);
+    if (commentBlock) card.appendChild(commentBlock);
     return card;
+}
+
+// The admin's comment on a clause, read-only. Nothing is shown when there is none.
+function renderClauseComment(clause) {
+    if (!clause.comment || !clause.comment.text) return null;
+    const block = createElement('div', 'clause-comment');
+    block.appendChild(createElement('h4', '', 'Comment from the administrator'));
+    block.appendChild(createElement('p', 'clause-comment-text', clause.comment.text));
+    block.appendChild(createElement('span', 'clause-comment-date', formatDateTime(clause.comment.updated_at)));
+    return block;
 }
 
 function renderClauseSection(heading, text) {
@@ -583,7 +596,7 @@ function generateMarkdown(result) {
         md += `> ${text(clause.clause_text)}\n\n`;
         md += `**Why it matters:** ${text(clause.issue_description)}\n\n`;
         md += `**Suggested workaround:** ${text(clause.workaround)}\n\n`;
-
+        if (clause.comment && clause.comment.text) md += `**Administrator comment:** ${clause.comment.text}\n\n`;
         const references = Array.isArray(clause.legal_references) ? clause.legal_references : [];
         if (references.length > 0) {
             md += `**Legal references:**\n`;

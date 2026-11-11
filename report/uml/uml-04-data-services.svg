@@ -1,0 +1,123 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2000" height="1000" viewBox="0 0 2000 1000">
+<defs><marker id="tri" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L13,7 L1,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="dia" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#222" stroke="#222" stroke-width="1"/></marker><marker id="diaw" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="arr" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#222" stroke-width="1.3"/></marker><marker id="arrf" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11 Z" fill="#222" stroke="#222" stroke-width="1"/></marker></defs>
+<rect width="2000" height="1000" fill="#ffffff"/>
+<text x="24" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#111">Data layer: the Data Manager and its repositories</text>
+<text x="24" y="52" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#555">DataManager owns the repositories; every repository shares one Database</text>
+<path d="M613.8,201.0 L1100.0,187.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="856.9" y="189.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">database</text>
+<text x="1083.7" y="181.5" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M408.1,312.0 L408.1,400.0 L183.2,400.0 L183.2,480.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="193.2" y="468.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M183.2,576.0 L183.2,760.0 L880.4,760.0 L880.4,800.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M466.5,312.0 L466.5,400.0 L669.9,400.0 L669.9,480.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="679.9" y="468.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M669.9,590.0 L669.9,760.0 L880.4,760.0 L880.4,800.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M525.0,312.0 L525.0,400.0 L1163.2,400.0 L1163.2,480.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="1173.2" y="468.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M1163.2,660.0 L1163.2,760.0 L880.4,760.0 L880.4,800.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M583.4,312.0 L583.4,400.0 L1676.5,400.0 L1676.5,480.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="1686.5" y="468.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M1676.5,576.0 L1676.5,760.0 L880.4,760.0 L880.4,800.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M1010.0,570.0 L819.8,535.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="990.0" y="560.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">uses</text>
+<path d="M980.8,847.5 L1950.0,847.5 L1950.0,370.0 L1405.3,370.0 L1405.3,284.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1450.0" y="839.5" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">every repository is given the Database</text>
+<rect x="380" y="90" width="233.79999999999998" height="222" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="496.9" y="106" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">DataManager</text>
+<line x1="380" y1="114" x2="613.8" y2="114" stroke="#2e7d32"/>
+<text x="388" y="128" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_database: Database</text>
+<text x="388" y="142" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_users: UserRepository</text>
+<text x="388" y="156" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_references: ReferenceRepository</text>
+<text x="388" y="170" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_analyses: AnalysisRepository</text>
+<text x="388" y="184" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_comments: CommentRepository</text>
+<line x1="380" y1="192" x2="613.8" y2="192" stroke="#2e7d32"/>
+<text x="388" y="206" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+from_env()$: DataManager</text>
+<text x="388" y="220" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+users: UserRepository</text>
+<text x="388" y="234" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+references: ReferenceRepository</text>
+<text x="388" y="248" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+analyses: AnalysisRepository</text>
+<text x="388" y="262" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+comments: CommentRepository</text>
+<text x="388" y="276" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+init_storage(): Dict[str, int]</text>
+<text x="388" y="290" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+counts(): Dict[str, int]</text>
+<text x="388" y="304" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+close(): None</text>
+<rect x="1100" y="90" width="359.2" height="194" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1279.6" y="106" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Database</text>
+<line x1="1100" y1="114" x2="1459.2" y2="114" stroke="#2e7d32"/>
+<text x="1108" y="128" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+CONNECT_TIMEOUT_SECONDS = 5</text>
+<text x="1108" y="142" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_url: str</text>
+<text x="1108" y="156" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_engine: Engine</text>
+<text x="1108" y="170" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_session_factory: sessionmaker</text>
+<line x1="1100" y1="178" x2="1459.2" y2="178" stroke="#2e7d32"/>
+<text x="1108" y="192" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+from_env(variable)$: Database</text>
+<text x="1108" y="206" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+normalise_url(url)$: str</text>
+<text x="1108" y="220" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+safe_url: str</text>
+<text x="1108" y="234" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+session(): Iterator[Session]  (commit or roll back)</text>
+<text x="1108" y="248" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+ping(): bool</text>
+<text x="1108" y="262" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+create_tables(): None</text>
+<text x="1108" y="276" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+dispose(): None</text>
+<rect x="30" y="480" width="306.4" height="96" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="183.2" y="496" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">UserRepository</text>
+<line x1="30" y1="504" x2="336.4" y2="504" stroke="#2e7d32"/>
+<line x1="30" y1="512" x2="336.4" y2="512" stroke="#2e7d32"/>
+<text x="38" y="526" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+create(username, password_hash, role): User</text>
+<text x="38" y="540" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+find_by_username(username): Optional[User]</text>
+<text x="38" y="554" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+get(entity_id): Optional[User]</text>
+<text x="38" y="568" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+list(): List[User]</text>
+<rect x="520" y="480" width="299.8" height="110" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="669.9" y="496" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ReferenceRepository</text>
+<line x1="520" y1="504" x2="819.8" y2="504" stroke="#2e7d32"/>
+<line x1="520" y1="512" x2="819.8" y2="512" stroke="#2e7d32"/>
+<text x="528" y="526" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+add_many(references): List[LegalReference]</text>
+<text x="528" y="540" font-family="Consolas, 'Courier New', monospace" font-size="11" text-decoration="underline" fill="#222">+add_many_in(session, references)</text>
+<text x="528" y="554" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+set_verification(ref_id, verification)</text>
+<text x="528" y="568" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+get(entity_id): Optional[LegalReference]</text>
+<text x="528" y="582" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+list(): List[LegalReference]</text>
+<rect x="1010" y="480" width="306.4" height="180" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1163.2" y="496" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AnalysisRepository</text>
+<line x1="1010" y1="504" x2="1316.4" y2="504" stroke="#2e7d32"/>
+<text x="1018" y="518" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_references: ReferenceRepository</text>
+<text x="1018" y="532" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+WITH_CLAUSES</text>
+<line x1="1010" y1="540" x2="1316.4" y2="540" stroke="#2e7d32"/>
+<text x="1018" y="554" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+compute_contract_hash(text, context)$: str</text>
+<text x="1018" y="568" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+create(owner_id, filename, text, context)</text>
+<text x="1018" y="582" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+complete(analysis_id, ai_clauses): Analysis</text>
+<text x="1018" y="596" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+fail(analysis_id): Analysis</text>
+<text x="1018" y="610" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+delete(analysis_id): Analysis</text>
+<text x="1018" y="624" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+get(entity_id): Optional[Analysis]</text>
+<text x="1018" y="638" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+find_by_hash(owner_id, contract_hash)</text>
+<text x="1018" y="652" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+list(owner_id, status, risk_level)</text>
+<rect x="1520" y="480" width="313.0" height="96" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1676.5" y="496" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">CommentRepository</text>
+<line x1="1520" y1="504" x2="1833.0" y2="504" stroke="#2e7d32"/>
+<line x1="1520" y1="512" x2="1833.0" y2="512" stroke="#2e7d32"/>
+<text x="1528" y="526" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+save(analysis_id, position, author_id, text)</text>
+<text x="1528" y="540" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+delete(analysis_id, position): bool</text>
+<text x="1528" y="554" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+get(entity_id): Optional[ClauseComment]</text>
+<text x="1528" y="568" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+list(): List[ClauseComment]</text>
+<rect x="780" y="800" width="200.79999999999998" height="95" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="880.4" y="816" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;abstract&#187;</text>
+<text x="880.4" y="829" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">Repository</text>
+<line x1="780" y1="837" x2="980.8" y2="837" stroke="#2e7d32"/>
+<text x="788" y="851" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">#_database: Database</text>
+<line x1="780" y1="859" x2="980.8" y2="859" stroke="#2e7d32"/>
+<text x="788" y="873" font-family="Consolas, 'Courier New', monospace" font-size="11" font-style="italic" fill="#222">+get(entity_id): Optional[T]</text>
+<text x="788" y="887" font-family="Consolas, 'Courier New', monospace" font-size="11" font-style="italic" fill="#222">+list(): List[T]</text>
+<rect x="30" y="90" width="320" height="72" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="40" y="110" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Repository&lt;T&gt; is the abstract parent.</text>
+<text x="40" y="125" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Each subclass stores one entity:</text>
+<text x="40" y="140" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">User, LegalReference, Analysis, ClauseComment.</text>
+<text x="40" y="155" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">All of them return entity objects, not dicts.</text>
+<rect x="30" y="780" width="270" height="142" fill="#fff" stroke="#bbb" rx="4"/>
+<text x="40" y="800" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700">Legend</text>
+<path d="M44.0,824.0 L94.0,824.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<text x="104" y="828" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Inheritance (is-a)</text>
+<path d="M44.0,842.0 L94.0,842.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<text x="104" y="846" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Realisation (implements interface)</text>
+<path d="M44.0,860.0 L94.0,860.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="104" y="864" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Composition (owns, same lifetime)</text>
+<path d="M44.0,878.0 L94.0,878.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="104" y="882" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Aggregation (has-a, part lives on)</text>
+<path d="M44.0,896.0 L94.0,896.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="104" y="900" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Association (uses)</text>
+<path d="M44.0,914.0 L94.0,914.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<text x="104" y="918" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Dependency (creates / passes)</text>
+</svg>

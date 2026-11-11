@@ -1,0 +1,178 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1700" height="1150" viewBox="0 0 1700 1150">
+<defs><marker id="tri" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L13,7 L1,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="dia" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#222" stroke="#222" stroke-width="1"/></marker><marker id="diaw" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="arr" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#222" stroke-width="1.3"/></marker><marker id="arrf" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11 Z" fill="#222" stroke="#222" stroke-width="1"/></marker></defs>
+<rect width="1700" height="1150" fill="#ffffff"/>
+<text x="24" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#111">System overview: the four managers and what they use</text>
+<text x="24" y="52" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#555">Browser -&gt; nginx -&gt; IO Manager -&gt; Logic Manager -&gt; AI Manager / Data Manager -&gt; PostgreSQL</text>
+<path d="M125.0,360.0 L125.0,450.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="125.0" y="400.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">HTTP</text>
+<path d="M220.0,471.5 L205.0,471.5 L205.0,181.0 L250.0,181.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M610.0,181.0 L660.0,181.0 L660.0,174.0 L710.0,174.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M610.0,181.0 L660.0,181.0 L660.0,284.0 L710.0,284.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M610.0,181.0 L660.0,181.0 L660.0,387.0 L710.0,387.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M610.0,181.0 L660.0,181.0 L660.0,487.0 L710.0,487.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M430.0,222.0 L430.0,320.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="440.0" y="308.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1..*</text>
+<path d="M306.0,460.0 L306.0,440.0 L430.0,440.0 L430.0,387.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M430.0,460.0 L430.0,440.0 L430.0,440.0 L430.0,387.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M554.0,460.0 L554.0,440.0 L430.0,440.0 L430.0,387.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M1010.0,487.0 L1050.0,487.0 L1050.0,239.0 L1110.0,239.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1010.0,487.0 L1050.0,487.0 L1050.0,412.0 L1110.0,412.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1010.0,487.0 L1050.0,487.0 L1050.0,644.0 L1110.0,644.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1010.0,174.0 L1070.0,174.0 L1070.0,632.0 L1110.0,630.4" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1010.0,284.0 L1070.0,284.0 L1070.0,632.0 L1110.0,630.4" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M860.0,514.0 L860.0,570.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M860.0,624.0 L860.0,670.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="870.0" y="658.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">0..*</text>
+<path d="M860.0,790.0 L860.0,737.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M710.0,703.5 L700.0,703.5 L700.0,901.5 L710.0,901.5" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<path d="M1360.0,239.0 L1470.0,246.5" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1360.0,412.0 L1470.0,416.5" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M860.0,923.0 L860.0,1040.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="860.0" y="976.5" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">alerts, Fix / Stop buttons</text>
+<path d="M1122.5,678.0 L1128.0,735.0 L1140.0,735.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<path d="M1122.5,678.0 L1128.0,791.0 L1140.0,791.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<path d="M1122.5,678.0 L1128.0,847.0 L1140.0,847.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<path d="M1122.5,678.0 L1128.0,903.0 L1140.0,903.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<path d="M1122.5,678.0 L1128.0,975.0 L1140.0,975.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<path d="M1360.0,975.0 L1470.0,981.5" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<rect x="30" y="330" width="150" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="105.0" y="346" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="700" fill="#111">Browser</text>
+<rect x="30" y="450" width="190" height="43" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="125.0" y="466" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;serves pages, proxies /api&#187;</text>
+<text x="125.0" y="479" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="700" fill="#111">nginx</text>
+<rect x="30" y="330" width="190" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="125.0" y="346" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="700" fill="#111">Browser</text>
+<rect x="250" y="140" width="360" height="82" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="430.0" y="156" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">IOManager</text>
+<line x1="250" y1="164" x2="610" y2="164" stroke="#e65100"/>
+<text x="258" y="178" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_flask: Flask</text>
+<line x1="250" y1="186" x2="610" y2="186" stroke="#e65100"/>
+<text x="258" y="200" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+analyze(), +list_analyses(), +compare()</text>
+<text x="258" y="214" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+save_comment(), +admin_users()  (admin only)</text>
+<rect x="250" y="320" width="360" height="67" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="430.0" y="336" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;abstract&#187;</text>
+<text x="430.0" y="349" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">DocumentExtractor</text>
+<line x1="250" y1="357" x2="610" y2="357" stroke="#e65100"/>
+<line x1="250" y1="365" x2="610" y2="365" stroke="#e65100"/>
+<text x="258" y="379" font-family="Consolas, 'Courier New', monospace" font-size="11" font-style="italic" fill="#222">+extract(path): str</text>
+<rect x="250" y="460" width="112" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="306.0" y="476" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">PdfExtractor</text>
+<rect x="374" y="460" width="112" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="430.0" y="476" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">DocxExtractor</text>
+<rect x="498" y="460" width="112" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="554.0" y="476" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">TxtExtractor</text>
+<rect x="710" y="140" width="300" height="68" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="156" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AuthService</text>
+<line x1="710" y1="164" x2="1010" y2="164" stroke="#1565c0"/>
+<line x1="710" y1="172" x2="1010" y2="172" stroke="#1565c0"/>
+<text x="718" y="186" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+register(), +authenticate()</text>
+<text x="718" y="200" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+seed_admin_from_env()</text>
+<rect x="710" y="250" width="300" height="68" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="266" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ReviewService</text>
+<line x1="710" y1="274" x2="1010" y2="274" stroke="#1565c0"/>
+<line x1="710" y1="282" x2="1010" y2="282" stroke="#1565c0"/>
+<text x="718" y="296" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+comment_on_clause()</text>
+<text x="718" y="310" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+remove_comment()</text>
+<rect x="710" y="360" width="300" height="54" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="376" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AnalysisComparer</text>
+<line x1="710" y1="384" x2="1010" y2="384" stroke="#1565c0"/>
+<line x1="710" y1="392" x2="1010" y2="392" stroke="#1565c0"/>
+<text x="718" y="406" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+compare(first, second)</text>
+<rect x="710" y="460" width="300" height="54" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="476" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AnalysisService</text>
+<line x1="710" y1="484" x2="1010" y2="484" stroke="#1565c0"/>
+<line x1="710" y1="492" x2="1010" y2="492" stroke="#1565c0"/>
+<text x="718" y="506" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+analyze(owner, filename, text, context)</text>
+<rect x="710" y="570" width="300" height="54" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="586" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AlertPolicy</text>
+<line x1="710" y1="594" x2="1010" y2="594" stroke="#1565c0"/>
+<line x1="710" y1="602" x2="1010" y2="602" stroke="#1565c0"/>
+<text x="718" y="616" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+evaluate(analysis, owner)</text>
+<rect x="710" y="670" width="300" height="67" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="686" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;abstract&#187;</text>
+<text x="860.0" y="699" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">AlertRule</text>
+<line x1="710" y1="707" x2="1010" y2="707" stroke="#1565c0"/>
+<line x1="710" y1="715" x2="1010" y2="715" stroke="#1565c0"/>
+<text x="718" y="729" font-family="Consolas, 'Courier New', monospace" font-size="11" font-style="italic" fill="#222">+matches(total_flagged): bool</text>
+<rect x="710" y="790" width="300" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="806" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ClauseCountAlertRule</text>
+<rect x="710" y="880" width="300" height="43" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="860.0" y="896" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;implements Notifier, ApprovalChannel&#187;</text>
+<text x="860.0" y="909" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">TelegramNotifier</text>
+<rect x="1110" y="205" width="250" height="68" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="1235.0" y="221" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AIManager</text>
+<line x1="1110" y1="229" x2="1360" y2="229" stroke="#6a1b9a"/>
+<line x1="1110" y1="237" x2="1360" y2="237" stroke="#6a1b9a"/>
+<text x="1118" y="251" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+detect_clauses()</text>
+<text x="1118" y="265" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+improve_workarounds()</text>
+<rect x="1110" y="315" width="250" height="30" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="1235.0" y="331" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">RecoverySession</text>
+<rect x="1110" y="385" width="250" height="54" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="1235.0" y="401" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">FirecrawlResearcher</text>
+<line x1="1110" y1="409" x2="1360" y2="409" stroke="#6a1b9a"/>
+<line x1="1110" y1="417" x2="1360" y2="417" stroke="#6a1b9a"/>
+<text x="1118" y="431" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+research(clause)</text>
+<rect x="1110" y="610" width="250" height="68" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1235.0" y="626" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">DataManager</text>
+<line x1="1110" y1="634" x2="1360" y2="634" stroke="#2e7d32"/>
+<line x1="1110" y1="642" x2="1360" y2="642" stroke="#2e7d32"/>
+<text x="1118" y="656" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+users, +references,</text>
+<text x="1118" y="670" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+analyses, +comments</text>
+<rect x="1140" y="720" width="220" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1250.0" y="736" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">UserRepository</text>
+<rect x="1140" y="776" width="220" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1250.0" y="792" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">ReferenceRepository</text>
+<rect x="1140" y="832" width="220" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1250.0" y="848" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">AnalysisRepository</text>
+<rect x="1140" y="888" width="220" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1250.0" y="904" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">CommentRepository</text>
+<rect x="1140" y="960" width="220" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1250.0" y="976" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Database</text>
+<rect x="1470" y="225" width="170" height="43" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="1555.0" y="241" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;chat completions&#187;</text>
+<text x="1555.0" y="254" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">OpenRouter (LLM)</text>
+<rect x="1470" y="395" width="170" height="43" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="1555.0" y="411" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;web search&#187;</text>
+<text x="1555.0" y="424" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Firecrawl API</text>
+<rect x="1470" y="960" width="170" height="43" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="1555.0" y="976" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;SQL via SQLAlchemy&#187;</text>
+<text x="1555.0" y="989" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="700" fill="#111">PostgreSQL</text>
+<rect x="740" y="1040" width="240" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="860.0" y="1056" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="13" font-weight="700" fill="#111">Telegram</text>
+<rect x="250" y="530" width="360" height="42" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="260" y="550" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Static pages: login.html, index.html, admin.html</text>
+<text x="260" y="565" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">JSON API under /api/</text>
+<rect x="1090" y="500" width="290" height="42" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="1100" y="520" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">AIManager asks the engineers through the</text>
+<text x="1100" y="535" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">ApprovalChannel interface (TelegramNotifier).</text>
+<rect x="230" y="100" width="400" height="520" rx="10" fill="none" stroke="#e65100" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="242" y="120" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-weight="700" fill="#e65100">IO Manager</text>
+<rect x="690" y="100" width="340" height="920" rx="10" fill="none" stroke="#1565c0" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="702" y="120" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-weight="700" fill="#1565c0">Logic Manager</text>
+<rect x="1090" y="160" width="290" height="330" rx="10" fill="none" stroke="#6a1b9a" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="1102" y="180" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-weight="700" fill="#6a1b9a">AI Manager</text>
+<rect x="1090" y="570" width="290" height="520" rx="10" fill="none" stroke="#2e7d32" stroke-width="2" stroke-dasharray="8 5"/>
+<text x="1102" y="590" font-family="'Segoe UI', Arial, sans-serif" font-size="14" font-weight="700" fill="#2e7d32">Data Manager</text>
+<rect x="30" y="680" width="270" height="222" fill="#fff" stroke="#bbb" rx="4"/>
+<text x="40" y="700" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700">Legend</text>
+<path d="M44.0,724.0 L94.0,724.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<text x="104" y="728" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Inheritance (is-a)</text>
+<path d="M44.0,742.0 L94.0,742.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<text x="104" y="746" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Realisation (implements interface)</text>
+<path d="M44.0,760.0 L94.0,760.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="104" y="764" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Composition (owns, same lifetime)</text>
+<path d="M44.0,778.0 L94.0,778.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="104" y="782" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Aggregation (has-a, part lives on)</text>
+<path d="M44.0,796.0 L94.0,796.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="104" y="800" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Association (uses)</text>
+<path d="M44.0,814.0 L94.0,814.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<text x="104" y="818" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Dependency (creates / passes)</text>
+<rect x="44" y="833" width="26" height="13" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="104" y="844" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">IO layer</text>
+<rect x="44" y="851" width="26" height="13" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="104" y="862" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Logic layer</text>
+<rect x="44" y="869" width="26" height="13" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="104" y="880" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">AI layer</text>
+<rect x="44" y="887" width="26" height="13" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="104" y="898" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Data layer</text>
+</svg>

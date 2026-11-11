@@ -7,3 +7,5 @@ python-docx==1.1.0
 requests==2.31.0
 python-dotenv==1.0.1
 werkzeug==3.0.3
+sqlalchemy==2.1.8
+psycopg[binary]==3.3.8

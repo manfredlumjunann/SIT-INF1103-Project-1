@@ -1,0 +1,184 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="2250" height="1450" viewBox="0 0 2250 1450">
+<defs><marker id="tri" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L13,7 L1,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="dia" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#222" stroke="#222" stroke-width="1"/></marker><marker id="diaw" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="arr" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#222" stroke-width="1.3"/></marker><marker id="arrf" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11 Z" fill="#222" stroke="#222" stroke-width="1"/></marker></defs>
+<rect width="2250" height="1450" fill="#ffffff"/>
+<text x="24" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#111">Data layer: entities and enumerations</text>
+<text x="24" y="52" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#555">The six tables as classes; values with rules are private and change through methods or validating setters</text>
+<path d="M330.0,190.0 L184.6,147.5" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="257.3" y="163.8" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">role</text>
+<path d="M960.0,173.0 L709.0,145.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="834.5" y="154.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">owner</text>
+<text x="945.2" y="165.3" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">*</text>
+<text x="723.8" y="160.7" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M1180.6,143.8 L1620.0,132.7" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1400.3" y="133.2" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">status</text>
+<path d="M1070.3,392.0 L1113.2,560.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="1064.6" y="414.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<text x="1118.9" y="546.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1..*</text>
+<path d="M1266.4,587.8 L1620.0,587.4" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1443.2" y="582.6" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">risk level</text>
+<path d="M960.0,643.4 L623.2,745.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="941.8" y="642.4" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<text x="641.4" y="754.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">0..1</text>
+<path d="M1006.0,838.0 L987.6,1110.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="994.9" y="857.3" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<text x="998.7" y="1098.7" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">0..*</text>
+<path d="M1098.0,1148.4 L1380.0,1144.5" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1114.1" y="1162.2" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">*</text>
+<text x="1363.9" y="1138.7" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M1582.7,1248.0 L1477.1,1320.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1529.9" y="1279.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">verification</text>
+<path d="M388.6,700.0 L405.8,280.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="397.2" y="485.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">author</text>
+<text x="399.3" y="688.4" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">*</text>
+<text x="395.2" y="299.6" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<rect x="30" y="100" width="154.6" height="95" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="107.3" y="116" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;enumeration&#187;</text>
+<text x="107.3" y="129" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Role</text>
+<line x1="30" y1="137" x2="184.6" y2="137" stroke="#2e7d32"/>
+<text x="38" y="151" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">CUSTOMER = &quot;customer&quot;</text>
+<text x="38" y="165" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">ADMIN = &quot;admin&quot;</text>
+<line x1="30" y1="173" x2="184.6" y2="173" stroke="#2e7d32"/>
+<text x="38" y="187" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+parse(value)$: Role</text>
+<rect x="330" y="100" width="379.0" height="180" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="519.5" y="116" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">User</text>
+<line x1="330" y1="124" x2="709.0" y2="124" stroke="#2e7d32"/>
+<text x="338" y="138" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+id: str</text>
+<text x="338" y="152" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+username: str</text>
+<text x="338" y="166" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+password_hash: str</text>
+<text x="338" y="180" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_role: str</text>
+<text x="338" y="194" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+created_at: datetime</text>
+<line x1="330" y1="202" x2="709.0" y2="202" stroke="#2e7d32"/>
+<text x="338" y="216" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+role: Role  (property + validating setter)</text>
+<text x="338" y="230" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+created_at_iso: str</text>
+<text x="338" y="244" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+is_admin(): bool</text>
+<text x="338" y="258" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+normalise_username(username)$: str</text>
+<text x="338" y="272" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+validated_fields(username, password_hash, role)$: dict</text>
+<rect x="960" y="100" width="220.6" height="292" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1070.3" y="116" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Analysis</text>
+<line x1="960" y1="124" x2="1180.6" y2="124" stroke="#2e7d32"/>
+<text x="968" y="138" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+id: str</text>
+<text x="968" y="152" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+owner_id: str</text>
+<text x="968" y="166" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_status: str</text>
+<text x="968" y="180" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+filename: str</text>
+<text x="968" y="194" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+context: str</text>
+<text x="968" y="208" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+contract_text: str</text>
+<text x="968" y="222" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+contract_hash: str</text>
+<text x="968" y="236" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+created_at: datetime</text>
+<text x="968" y="250" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+clauses: List[Clause]</text>
+<line x1="960" y1="258" x2="1180.6" y2="258" stroke="#2e7d32"/>
+<text x="968" y="272" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+status: AnalysisStatus</text>
+<text x="968" y="286" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+created_at_iso: str</text>
+<text x="968" y="300" font-family="Consolas, 'Courier New', monospace" font-size="11" text-decoration="underline" fill="#222">+has_status(status)</text>
+<text x="968" y="314" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+mark_done(clauses): None</text>
+<text x="968" y="328" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+mark_failed(): None</text>
+<text x="968" y="342" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+discard_clauses(): None</text>
+<text x="968" y="356" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+counts(): Dict[RiskLevel, int]</text>
+<text x="968" y="370" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+is_owned_by(user_id): bool</text>
+<text x="968" y="384" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+commented_clause_count(): int</text>
+<rect x="1620" y="100" width="214.0" height="109" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1727.0" y="116" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;enumeration&#187;</text>
+<text x="1727.0" y="129" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AnalysisStatus</text>
+<line x1="1620" y1="137" x2="1834.0" y2="137" stroke="#2e7d32"/>
+<text x="1628" y="151" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">PROCESSING = &quot;processing&quot;</text>
+<text x="1628" y="165" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">DONE = &quot;done&quot;</text>
+<text x="1628" y="179" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">FAILED = &quot;failed&quot;</text>
+<line x1="1620" y1="187" x2="1834.0" y2="187" stroke="#2e7d32"/>
+<text x="1628" y="201" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+parse(value)$: AnalysisStatus</text>
+<rect x="960" y="560" width="306.4" height="278" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1113.2" y="576" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Clause</text>
+<line x1="960" y1="584" x2="1266.4" y2="584" stroke="#2e7d32"/>
+<text x="968" y="598" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+id: int</text>
+<text x="968" y="612" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+analysis_id: str</text>
+<text x="968" y="626" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+position: int</text>
+<text x="968" y="640" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+clause_type: str</text>
+<text x="968" y="654" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_risk_level: str</text>
+<text x="968" y="668" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+clause_text: str</text>
+<text x="968" y="682" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+location_page: Optional[int]</text>
+<text x="968" y="696" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+location_clause_ref: Optional[str]</text>
+<text x="968" y="710" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+location_raw: Optional[str]</text>
+<text x="968" y="724" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+issue_description: str</text>
+<text x="968" y="738" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+workaround: str</text>
+<text x="968" y="752" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+references: List[ClauseReference]</text>
+<text x="968" y="766" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+comment: Optional[ClauseComment]</text>
+<line x1="960" y1="774" x2="1266.4" y2="774" stroke="#2e7d32"/>
+<text x="968" y="788" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+risk_level: RiskLevel</text>
+<text x="968" y="802" font-family="Consolas, 'Courier New', monospace" font-size="11" text-decoration="underline" fill="#222">+has_risk_level(level)</text>
+<text x="968" y="816" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+from_ai(position, raw, references)$: Clause</text>
+<text x="968" y="830" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_parse_location(raw)$: dict</text>
+<rect x="1620" y="560" width="181.0" height="137" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1710.5" y="576" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;enumeration&#187;</text>
+<text x="1710.5" y="589" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">RiskLevel</text>
+<line x1="1620" y1="597" x2="1801.0" y2="597" stroke="#2e7d32"/>
+<text x="1628" y="611" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">HIGH = &quot;HIGH&quot;</text>
+<text x="1628" y="625" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">MEDIUM = &quot;MEDIUM&quot;</text>
+<text x="1628" y="639" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">LOW = &quot;LOW&quot;</text>
+<line x1="1620" y1="647" x2="1801.0" y2="647" stroke="#2e7d32"/>
+<text x="1628" y="661" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+parse(value)$: RiskLevel</text>
+<text x="1628" y="675" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+label: str</text>
+<text x="1628" y="689" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+rank: int</text>
+<rect x="330" y="700" width="293.2" height="180" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="476.6" y="716" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ClauseComment</text>
+<line x1="330" y1="724" x2="623.2" y2="724" stroke="#2e7d32"/>
+<text x="338" y="738" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+MAX_LENGTH = 2000</text>
+<text x="338" y="752" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+id: str</text>
+<text x="338" y="766" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+clause_id: int</text>
+<text x="338" y="780" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+author_id: str</text>
+<text x="338" y="794" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_text: str</text>
+<text x="338" y="808" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+created_at: datetime</text>
+<text x="338" y="822" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+updated_at: datetime</text>
+<line x1="330" y1="830" x2="623.2" y2="830" stroke="#2e7d32"/>
+<text x="338" y="844" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+text: str  (property + validating setter)</text>
+<text x="338" y="858" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+updated_at_iso: str</text>
+<text x="338" y="872" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+revise(author_id, text): None</text>
+<rect x="960" y="1110" width="138.0" height="96" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1029.0" y="1126" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ClauseReference</text>
+<line x1="960" y1="1134" x2="1098.0" y2="1134" stroke="#2e7d32"/>
+<text x="968" y="1148" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+clause_id: int</text>
+<text x="968" y="1162" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+reference_id: str</text>
+<text x="968" y="1176" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+position: int</text>
+<text x="968" y="1190" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+snippet: str</text>
+<line x1="960" y1="1198" x2="1098.0" y2="1198" stroke="#2e7d32"/>
+<rect x="1380" y="1110" width="405.4" height="138" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1582.7" y="1126" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">LegalReference</text>
+<line x1="1380" y1="1134" x2="1785.4" y2="1134" stroke="#2e7d32"/>
+<text x="1388" y="1148" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+id: str</text>
+<text x="1388" y="1162" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+url: str</text>
+<text x="1388" y="1176" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+title: str</text>
+<text x="1388" y="1190" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+domain: str</text>
+<text x="1388" y="1204" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">-_verification: str</text>
+<line x1="1380" y1="1212" x2="1785.4" y2="1212" stroke="#2e7d32"/>
+<text x="1388" y="1226" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+verification: Verification  (property + validating setter)</text>
+<text x="1388" y="1240" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">+from_url(url, title)$: LegalReference</text>
+<rect x="1380" y="1320" width="194.2" height="95" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1477.1" y="1336" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;enumeration&#187;</text>
+<text x="1477.1" y="1349" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Verification</text>
+<line x1="1380" y1="1357" x2="1574.2" y2="1357" stroke="#2e7d32"/>
+<text x="1388" y="1371" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">UNVERIFIED = &quot;unverified&quot;</text>
+<text x="1388" y="1385" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">VERIFIED_SG = &quot;verified_sg&quot;</text>
+<text x="1388" y="1399" font-family="Consolas, 'Courier New', monospace" font-size="11" fill="#222">REJECTED = &quot;rejected&quot;</text>
+<line x1="1380" y1="1407" x2="1574.2" y2="1407" stroke="#2e7d32"/>
+<rect x="30" y="330" width="270" height="72" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="40" y="350" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">All four enumerations extend</text>
+<text x="40" y="365" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">ChoiceEnum (str, Enum), which gives them</text>
+<text x="40" y="380" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">one shared _parse() with a clear</text>
+<text x="40" y="395" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">error message for unknown values.</text>
+<rect x="1620" y="330" width="250" height="72" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="1630" y="350" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Deleting an Analysis deletes its</text>
+<text x="1630" y="365" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Clauses, ClauseReferences and</text>
+<text x="1630" y="380" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">ClauseComments. LegalReferences</text>
+<text x="1630" y="395" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">are shared and stay.</text>
+<rect x="30" y="1200" width="270" height="142" fill="#fff" stroke="#bbb" rx="4"/>
+<text x="40" y="1220" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700">Legend</text>
+<path d="M44.0,1244.0 L94.0,1244.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<text x="104" y="1248" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Inheritance (is-a)</text>
+<path d="M44.0,1262.0 L94.0,1262.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<text x="104" y="1266" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Realisation (implements interface)</text>
+<path d="M44.0,1280.0 L94.0,1280.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="104" y="1284" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Composition (owns, same lifetime)</text>
+<path d="M44.0,1298.0 L94.0,1298.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="104" y="1302" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Aggregation (has-a, part lives on)</text>
+<path d="M44.0,1316.0 L94.0,1316.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="104" y="1320" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Association (uses)</text>
+<path d="M44.0,1334.0 L94.0,1334.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<text x="104" y="1338" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Dependency (creates / passes)</text>
+</svg>
