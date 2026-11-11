@@ -1,35 +1,17 @@
-"""Where messages and decisions go. Telegram is the only channel for now, but the rest of the
-code depends on the two interfaces below, so another channel could be swapped in."""
+"""Telegram is the only channel for now, but the rest of the code depends on the Notifier and
+ApprovalChannel interfaces, so another channel could be swapped in."""
 
 import logging
 import os
 import time
-from abc import ABC, abstractmethod
 from typing import Optional, Tuple
 
 import requests
 
+from approval_channel import ApprovalChannel
+from notifier import Notifier
+
 logger = logging.getLogger('contract-analyzer')
-
-
-class Notifier(ABC):
-    """Can deliver a message to someone."""
-
-    @abstractmethod
-    def send(self, message: str, recipient: str) -> None:
-        """Deliver the message. Must not raise if delivery fails."""
-
-
-class ApprovalChannel(ABC):
-    """Can tell the engineers about a problem and wait for their answer."""
-
-    @abstractmethod
-    def request_decision(self, prompt: str) -> str:
-        """Show the prompt and wait; returns 'accept' or 'reject'."""
-
-    @abstractmethod
-    def announce(self, message: str) -> None:
-        """Post a progress message to the engineers."""
 
 
 class TelegramNotifier(Notifier, ApprovalChannel):

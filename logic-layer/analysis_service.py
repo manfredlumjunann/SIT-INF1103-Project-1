@@ -4,11 +4,15 @@ import logging
 from datetime import datetime
 from typing import Dict, List, Tuple
 
-from ai_manager import AIManager, RecoverySession
+from ai_manager import AIManager
 from alert_policy import AlertPolicy
+from analysis import Analysis
+from analysis_status import AnalysisStatus
 from data_manager import DataManager
-from entities import Analysis, AnalysisStatus, RiskLevel, User
 from firecrawl_researcher import FirecrawlResearcher
+from recovery_session import RecoverySession
+from risk_level import RiskLevel
+from user import User
 
 logger = logging.getLogger('contract-analyzer')
 

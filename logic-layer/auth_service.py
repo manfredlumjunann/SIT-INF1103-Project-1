@@ -5,19 +5,12 @@ import os
 
 from werkzeug.security import check_password_hash, generate_password_hash
 
+from auth_error import AuthError
 from data_manager import DataManager
-from entities import USERNAME_PATTERN, Role, User
+from role import Role
+from user import USERNAME_PATTERN, User
 
 logger = logging.getLogger('contract-analyzer')
-
-
-class AuthError(Exception):
-    """A registration or login problem that is safe to show the user.
-    reason is 'invalid' (bad input), 'conflict' (already exists) or 'unauthorized'."""
-
-    def __init__(self, message: str, reason: str) -> None:
-        super().__init__(message)
-        self.reason = reason
 
 
 class AuthService:

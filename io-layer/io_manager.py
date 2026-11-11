@@ -13,27 +13,38 @@ from typing import Callable, Dict, Optional, Sequence
 from flask import Flask, Response, g, jsonify, request, session
 from werkzeug.utils import secure_filename
 
-from analysis_comparer import AnalysisComparer, Comparison
+from analysis import Analysis
+from analysis_comparer import AnalysisComparer
 from analysis_service import AnalysisService
-from auth_service import AuthError, AuthService
+from analysis_status import AnalysisStatus
+from auth_error import AuthError
+from auth_service import AuthService
+from clause import Clause
+from clause_comment import ClauseComment
+from comparison import Comparison
 from data_manager import DataManager
-from document_extractors import DocumentExtractor
-from entities import Analysis, AnalysisStatus, Clause, RiskLevel, User
+from document_extractor import DocumentExtractor
+from review_error import ReviewError
+from review_service import ReviewService
+from risk_level import RiskLevel
+from user import User
 
 logger = logging.getLogger('contract-analyzer')
 
 AUTH_ERROR_STATUS = {'invalid': 400, 'conflict': 409, 'unauthorized': 401}
+REVIEW_ERROR_STATUS = {'invalid': 400, 'forbidden': 403, 'not_found': 404, 'conflict': 409}
 
 
 class IOManager:
     MAX_UPLOAD_BYTES = 50 * 1024 * 1024
     SESSION_HOURS = 8
 
-    def __init__(self, auth: AuthService, analyses: AnalysisService, comparer: AnalysisComparer,
-                 data: DataManager, extractors: Sequence[DocumentExtractor],
+    def __init__(self, auth: AuthService, analyses: AnalysisService, reviews: ReviewService,
+                 comparer: AnalysisComparer, data: DataManager, extractors: Sequence[DocumentExtractor],
                  secret_key: Optional[str] = None) -> None:
         self._auth = auth
         self._analyses = analyses
+        self._reviews = reviews
         self._comparer = comparer
         self._data = data
         self._extractors = list(extractors)
@@ -73,6 +84,10 @@ class IOManager:
             ('/api/analyses/<analysis_id>/compare-options', 'GET', self.compare_options, self._login_required),
             ('/api/admin/users', 'GET', self.admin_users, self._admin_required),
             ('/api/admin/analyses', 'GET', self.admin_analyses, self._admin_required),
+            ('/api/admin/analyses/<analysis_id>/clauses/<int:position>/comment', 'PUT',
+             self.save_comment, self._admin_required),
+            ('/api/admin/analyses/<analysis_id>/clauses/<int:position>/comment', 'DELETE',
+             self.delete_comment, self._admin_required),
             ('/api/health', 'GET', self.health, None),
         ]
         for path, method, handler, guard in routes:
@@ -286,7 +301,7 @@ class IOManager:
         return jsonify({'same_file': [self._analysis_summary(a) for a in same_file],
                         'others': [self._analysis_summary(a) for a in others]})
 
-    # Admin routes: read-only view of every user's analyses
+    # Admin routes: see every user's analyses and comment on their clauses
 
     def admin_users(self) -> Response:
         """Every account with how many analyses it has saved."""
@@ -312,8 +327,25 @@ class IOManager:
             entry = self._analysis_summary(analysis)
             entry['owner_id'] = analysis.owner_id
             entry['owner_username'] = usernames.get(analysis.owner_id, 'Deleted user')
+            entry['commented_count'] = analysis.commented_clause_count()
             analyses.append(entry)
         return jsonify({'analyses': analyses})
+
+    def save_comment(self, analysis_id: str, position: int) -> Response:
+        """Add or replace the admin's comment on one clause."""
+        fields = self._json_fields('text')
+        try:
+            comment = self._reviews.comment_on_clause(g.user, analysis_id, position, fields['text'])
+        except ReviewError as error:
+            return jsonify({'error': str(error)}), REVIEW_ERROR_STATUS[error.reason]
+        return jsonify({'comment': self._comment_view(comment)})
+
+    def delete_comment(self, analysis_id: str, position: int) -> Response:
+        try:
+            self._reviews.remove_comment(g.user, analysis_id, position)
+        except ReviewError as error:
+            return jsonify({'error': str(error)}), REVIEW_ERROR_STATUS[error.reason]
+        return jsonify({'deleted': True})
 
     def health(self) -> Response:
         """Health check endpoint with model availability test."""
@@ -326,10 +358,18 @@ class IOManager:
         return {level.label: count for level, count in analysis.counts().items()}
 
     @staticmethod
+    def _comment_view(comment: Optional[ClauseComment]) -> Optional[Dict]:
+        if comment is None:
+            return None
+        return {'text': comment.text, 'updated_at': comment.updated_at_iso}
+
+    @staticmethod
     def _clause_view(clause: Clause) -> Dict:
         """One stored clause in the shape the frontend renders."""
         return {
             'id': f'cl_{clause.position}',
+            'position': clause.position,
+            'comment': IOManager._comment_view(clause.comment),
             'clause_type': clause.clause_type,
             'risk_level': clause.risk_level.value,
             'clause_text': clause.clause_text,

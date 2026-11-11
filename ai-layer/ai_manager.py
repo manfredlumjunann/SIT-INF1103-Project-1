@@ -7,33 +7,12 @@ from typing import Dict, List, Optional, Sequence, Tuple
 
 from openai import OpenAI
 
-from notifications import ApprovalChannel
+from approval_channel import ApprovalChannel
+from recovery_session import RecoverySession
 
 logger = logging.getLogger('contract-analyzer')
 
 OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
-
-
-class RecoverySession:
-    """Remembers, for one analysis, whether the engineers were already alerted and which
-    backup model they approved, so every AI call of that analysis shares the same answer."""
-
-    def __init__(self) -> None:
-        self._notified = False
-        self._manual_model: Optional[str] = None
-
-    @property
-    def manual_model(self) -> Optional[str]:
-        return self._manual_model
-
-    def was_notified(self) -> bool:
-        return self._notified
-
-    def mark_notified(self) -> None:
-        self._notified = True
-
-    def approve(self, model: str) -> None:
-        self._manual_model = model
 
 
 class AIManager:
@@ -189,7 +168,7 @@ Return JSON array with enhanced workaround fields."""
         Returns the backup model's answer, or None if they pressed neither button."""
         decision = self._approval.request_decision(error_category)
         if decision == 'accept':
-            recovery.approve(self.MANUAL_BACKUP_MODEL)
+            recovery.manual_model = self.MANUAL_BACKUP_MODEL
             self._approval.announce("🔄 Attempting manual AI recovery...")
             try:
                 response = self._ask(client, self.MANUAL_BACKUP_MODEL, messages, backup=True)

@@ -1,41 +1,14 @@
 """Compares two finished analyses (the "compare" feature)."""
 
-from dataclasses import dataclass
 from typing import Dict, List, Tuple
 
-from entities import Analysis, Clause
+from analysis import Analysis
+from clause import Clause
+from clause_match import ClauseMatch
+from comparison import Comparison
 
 # Tried in this order: the same quoted text is a surer sign of the same clause than the same name
 MATCH_FIELDS = ('clause_text', 'clause_type')
-
-
-@dataclass(frozen=True)
-class ClauseMatch:
-    """The same clause found in both analyses."""
-    first: Clause
-    second: Clause
-    matched_on: str  # 'text' or 'type'
-
-    @property
-    def risk_change(self) -> str:
-        """How the risk in the second analysis compares with the first: 'higher', 'lower' or 'same'."""
-        difference = self.second.risk_level.rank - self.first.risk_level.rank
-        if difference == 0:
-            return 'same'
-        return 'higher' if difference > 0 else 'lower'
-
-
-@dataclass(frozen=True)
-class Comparison:
-    first: Analysis
-    second: Analysis
-    in_both: List[ClauseMatch]
-    only_first: List[Clause]
-    only_second: List[Clause]
-
-    @property
-    def same_contract(self) -> bool:
-        return self.first.contract_text == self.second.contract_text
 
 
 class AnalysisComparer:

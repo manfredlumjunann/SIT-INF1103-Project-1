@@ -10,7 +10,8 @@ from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
 
-from entities import Base
+import entities  # noqa: F401  (registers the tables with Base)
+from orm_base import Base
 
 logger = logging.getLogger(__name__)
 

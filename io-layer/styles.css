@@ -1468,6 +1468,217 @@ body.auth-pending .app {
     }
 }
 
+/* ---------- Administrator review page ---------- */
+
+body.auth-pending .admin-page {
+    visibility: hidden;
+}
+
+.admin-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 0.75rem 1.5rem;
+    border-bottom: 1px solid var(--border);
+    background: var(--sidebar);
+}
+
+.admin-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.admin-main {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 2rem 1.25rem 4rem;
+}
+
+.admin-title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 0.35rem;
+    overflow-wrap: anywhere;
+}
+
+.admin-sub,
+.review-context {
+    margin-bottom: 1.25rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.review > .result-meta {
+    margin-bottom: 0.75rem;
+}
+
+#review-view > .btn-ghost {
+    margin-bottom: 1.25rem;
+}
+
+.user-groups {
+    display: grid;
+    gap: 0.75rem;
+}
+
+.user-group {
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--surface);
+    overflow: hidden;
+}
+
+.user-group-header {
+    display: flex;
+    align-items: center;
+    gap: 0.7rem;
+    width: 100%;
+    padding: 0.8rem 1rem;
+    border: none;
+    background: transparent;
+    text-align: left;
+}
+
+.user-group-header:hover {
+    background: var(--surface-raised);
+}
+
+.chevron {
+    width: 1rem;
+    color: var(--text-faint);
+}
+
+.user-group-name {
+    font-weight: 600;
+    overflow-wrap: anywhere;
+}
+
+.user-group-count {
+    margin-left: auto;
+    color: var(--text-muted);
+    font-size: 0.85rem;
+}
+
+.file-list {
+    list-style: none;
+    border-top: 1px solid var(--border);
+}
+
+.file-empty {
+    padding: 0.8rem 1rem;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.file-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 0.5rem 1rem;
+    width: 100%;
+    padding: 0.7rem 1rem 0.7rem 2.4rem;
+    border: none;
+    border-top: 1px solid var(--border);
+    background: transparent;
+    text-align: left;
+}
+
+.file-list li:first-child .file-row {
+    border-top: none;
+}
+
+.file-row:hover {
+    background: var(--surface-raised);
+}
+
+.file-row-main {
+    display: grid;
+    min-width: 0;
+}
+
+.file-row-name {
+    overflow-wrap: anywhere;
+}
+
+.file-row-date,
+.comment-progress {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+.file-row-meta {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+}
+
+/* What the user reads (read-only) and what the administrator edits */
+.clause-comment,
+.comment-editor {
+    margin-top: 0.9rem;
+    padding: 0.7rem 0.85rem;
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    border-radius: 10px;
+    background: var(--accent-soft);
+}
+
+.clause-comment h4,
+.comment-editor label {
+    display: block;
+    margin-bottom: 0.25rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--accent-text);
+}
+
+.clause-comment-text {
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-size: 0.925rem;
+}
+
+.clause-comment-date {
+    display: block;
+    margin-top: 0.35rem;
+    color: var(--text-faint);
+    font-size: 0.78rem;
+}
+
+.comment-editor textarea {
+    display: block;
+    width: 100%;
+    min-height: 4.5rem;
+    padding: 0.55rem 0.7rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 8px;
+    background: var(--surface);
+    resize: vertical;
+}
+
+.comment-editor-bar {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 0.5rem;
+    margin-top: 0.5rem;
+}
+
+.comment-status {
+    margin-right: auto;
+    color: var(--text-muted);
+    font-size: 0.82rem;
+}
+
+.comment-status.error {
+    color: var(--high);
+}
+
 @media (prefers-reduced-motion: reduce) {
     *,
     *::before,

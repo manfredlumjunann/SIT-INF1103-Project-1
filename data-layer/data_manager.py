@@ -5,9 +5,14 @@ from typing import Dict
 
 from sqlalchemy import func, select
 
+from analysis import Analysis
+from analysis_repository import AnalysisRepository
+from comment_repository import CommentRepository
 from database import Database
-from entities import Analysis, LegalReference, User
-from repositories import AnalysisRepository, ReferenceRepository, UserRepository
+from legal_reference import LegalReference
+from reference_repository import ReferenceRepository
+from user import User
+from user_repository import UserRepository
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +25,7 @@ class DataManager:
         self._users = UserRepository(database)
         self._references = ReferenceRepository(database)
         self._analyses = AnalysisRepository(database, self._references)
+        self._comments = CommentRepository(database)
 
     @classmethod
     def from_env(cls) -> 'DataManager':
@@ -37,6 +43,10 @@ class DataManager:
     @property
     def analyses(self) -> AnalysisRepository:
         return self._analyses
+
+    @property
+    def comments(self) -> CommentRepository:
+        return self._comments
 
     def init_storage(self) -> Dict[str, int]:
         """Connect, create any missing tables and return how many records are stored."""

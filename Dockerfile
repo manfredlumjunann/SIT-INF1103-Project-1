@@ -41,6 +41,8 @@ COPY io-layer/common.js /usr/share/nginx/html/
 COPY io-layer/app.js /usr/share/nginx/html/
 COPY io-layer/login.html /usr/share/nginx/html/
 COPY io-layer/login.js /usr/share/nginx/html/
+COPY io-layer/admin.html /usr/share/nginx/html/
+COPY io-layer/admin.js /usr/share/nginx/html/
 COPY io-layer/theme.js /usr/share/nginx/html/
 
 # Copy supervisor configuration

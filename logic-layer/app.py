@@ -7,15 +7,19 @@ from dotenv import load_dotenv
 from flask import Flask
 
 from ai_manager import AIManager
-from alert_policy import AlertPolicy, ClauseCountAlertRule
+from alert_policy import AlertPolicy
 from analysis_comparer import AnalysisComparer
 from analysis_service import AnalysisService
 from auth_service import AuthService
+from clause_count_alert_rule import ClauseCountAlertRule
 from data_manager import DataManager
-from document_extractors import DocxExtractor, PdfExtractor, TxtExtractor
+from docx_extractor import DocxExtractor
 from firecrawl_researcher import FirecrawlResearcher
 from io_manager import IOManager
-from notifications import TelegramNotifier
+from pdf_extractor import PdfExtractor
+from review_service import ReviewService
+from telegram_notifier import TelegramNotifier
+from txt_extractor import TxtExtractor
 
 logger = logging.getLogger('contract-analyzer')
 
@@ -53,7 +57,7 @@ class Application:
         auth.seed_admin_from_env()
 
         return IOManager(
-            auth, analyses, AnalysisComparer(), data,
+            auth, analyses, ReviewService(data), AnalysisComparer(), data,
             extractors=[PdfExtractor(), DocxExtractor(), TxtExtractor()],
             secret_key=os.getenv('SECRET_KEY'),
         ).flask_app
