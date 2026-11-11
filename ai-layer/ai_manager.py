@@ -1,4 +1,4 @@
-"""AI Manager: builds prompts, calls the AI with model failover, and validates what comes back."""
+"""Talks to the AI: builds the prompts, fails over between models and checks the answers."""
 
 import json
 import logging
@@ -15,9 +15,8 @@ OPENROUTER_BASE_URL = 'https://openrouter.ai/api/v1'
 
 
 class RecoverySession:
-    """What one analysis has learned about AI trouble: whether the engineers were already
-    alerted, and which backup model they approved. One instance is shared by every AI call
-    of that analysis, so the team is alerted at most once per analysis."""
+    """Remembers, for one analysis, whether the engineers were already alerted and which
+    backup model they approved, so every AI call of that analysis shares the same answer."""
 
     def __init__(self) -> None:
         self._notified = False
@@ -39,7 +38,7 @@ class RecoverySession:
 
 class AIManager:
     PRIMARY_MODEL = 'nvidia/nemotron-3-ultra-550b-a55b:free'
-    # Tried in order after the primary model. Check availability at https://openrouter.ai/models?q=:free
+    # Tried in order after the primary. Check what is still free at https://openrouter.ai/models?q=:free
     FALLBACK_MODELS = (
         'nvidia/nemotron-3-ultra-550b-a55b:free',
         'google/gemma-pro-1.5-2b-it:free',
@@ -76,7 +75,7 @@ Return ONLY valid JSON array matching the input structure but with enhanced 'wor
                  max_retries: int = 2) -> None:
         self._api_key = api_key
         self._approval = approval
-        self._models = [primary_model] + [model for model in fallback_models if model != primary_model]
+        self._models = [primary_model] + [m for m in fallback_models if m != primary_model]
         self._max_retries = max_retries
 
     @property
@@ -87,11 +86,8 @@ Return ONLY valid JSON array matching the input structure but with enhanced 'wor
     def is_configured(self) -> bool:
         return bool(self._api_key)
 
-    # Pipeline stages
-
     def detect_clauses(self, contract_text: str, context: str,
                        recovery: RecoverySession) -> List[Dict]:
-        """Ask the AI for problematic clauses; returns only well-formed clause objects."""
         context_line = 'CONTEXT: ' + context if context else ''
         user_prompt = f"""Analyze this contract and flag all problematic clauses:
 
@@ -106,14 +102,13 @@ Return JSON array of flagged clauses."""
             {'role': 'user', 'content': user_prompt},
         ], recovery)
         try:
-            parsed = self._parse_json_array(response)
+            return self._valid_clauses(self._parse_json_array(response))
         except json.JSONDecodeError:
             logger.warning("Failed to parse AI response as JSON")
             return []
-        return self._validated_clauses(parsed)
 
     def improve_workarounds(self, clauses: List[Dict], recovery: RecoverySession) -> List[Dict]:
-        """Ask the AI for fuller workarounds. If that fails for any reason the clauses are returned unchanged."""
+        """Ask for fuller workarounds. This step is optional, so on any failure the clauses come back unchanged."""
         user_prompt = f"""Enhance these flagged clauses with detailed workarounds:
 
 {json.dumps(clauses, indent=2)}
@@ -124,31 +119,28 @@ Return JSON array with enhanced workaround fields."""
                 {'role': 'system', 'content': self.WORKAROUND_SYSTEM_PROMPT},
                 {'role': 'user', 'content': user_prompt},
             ], recovery)
-            enhanced = self._parse_json_array(response)
-            if enhanced is not None:
-                return self._validated_clauses(enhanced) if enhanced else enhanced
+            improved = self._parse_json_array(response)
+            if improved is not None:
+                return self._valid_clauses(improved)
         except Exception as error:
             logger.warning("Workaround enhancement failed: %s", error)
         return clauses
 
     def probe_models(self, limit: int = 4) -> Tuple[List[str], List[Dict[str, str]]]:
-        """Ask the first few models a trivial question; returns (working models, failures)."""
-        working: List[str] = []
-        failed: List[Dict[str, str]] = []
+        """Ask the first few models a trivial question. Returns (working models, failures)."""
+        working, failed = [], []
         if not self.is_configured:
             return working, failed
         client = self._client()
         for model in self._models[:limit]:
             try:
-                response = client.chat.completions.create(
+                reply = client.chat.completions.create(
                     model=model, messages=[{'role': 'user', 'content': 'Hi'}], max_tokens=5)
-                if response.choices[0].message.content:
+                if reply.choices[0].message.content:
                     working.append(model)
             except Exception as error:
                 failed.append({'model': model, 'error': str(error)[:80]})
         return working, failed
-
-    # Calling the AI
 
     def _client(self) -> OpenAI:
         if not self._api_key:
@@ -156,13 +148,11 @@ Return JSON array with enhanced workaround fields."""
         return OpenAI(base_url=OPENROUTER_BASE_URL, api_key=self._api_key)
 
     def _call_with_failover(self, messages: List[Dict], recovery: RecoverySession) -> str:
-        """Try each model in turn (skipping unavailable ones). When every model fails, alert the
-        engineers once and let them approve a backup model or stop the analysis."""
         client = self._client()
 
         if recovery.manual_model:
             logger.info("Using previously approved backup AI")
-            return self._call_model(client, recovery.manual_model, messages, backup=True)
+            return self._ask(client, recovery.manual_model, messages, backup=True)
 
         last_error: Optional[Exception] = None
         error_category = None
@@ -170,14 +160,13 @@ Return JSON array with enhanced workaround fields."""
             for attempt in range(self._max_retries):
                 try:
                     logger.info("Trying model: %s (attempt %s)", model, attempt + 1)
-                    content = self._call_model(client, model, messages)
+                    content = self._ask(client, model, messages)
                     if content:
                         logger.info("Success with %s", model)
                         return content
                 except Exception as error:
                     last_error = error
                     error_category = self._classify_error(error)
-                    # An unavailable model (404) is skipped immediately, no retry
                     if '404' in str(error) or 'unavailable' in str(error).lower():
                         logger.warning("Model %s unavailable (404), skipping...", model)
                         break
@@ -185,38 +174,47 @@ Return JSON array with enhanced workaround fields."""
 
         if not recovery.was_notified():
             recovery.mark_notified()
-            decision = self._approval.request_decision(error_category)
-            if decision == 'accept':
-                recovery.approve(self.MANUAL_BACKUP_MODEL)
-                self._approval.announce("🔄 Attempting manual AI recovery...")
-                try:
-                    response = self._call_model(client, self.MANUAL_BACKUP_MODEL, messages, backup=True)
-                    self._approval.announce("✅ Backup AI successfully recovered!")
-                    return response
-                except Exception as error:
-                    self._approval.announce(f"❌ Backup AI failed: {str(error)[:200]}")
-                    raise
-            elif decision == 'reject':
-                self._approval.announce("🛑 Manual recovery cancelled.")
-                raise RuntimeError("Manual AI recovery rejected by engineer")
+            backup_response = self._ask_engineers(client, messages, recovery, error_category)
+            if backup_response is not None:
+                return backup_response
 
         raise RuntimeError(
             f"All AI models are currently unavailable. Last error: {last_error}. "
             "Please try again later."
         )
 
+    def _ask_engineers(self, client: OpenAI, messages: List[Dict], recovery: RecoverySession,
+                       error_category: Optional[str]) -> Optional[str]:
+        """Every model failed: let the engineers choose Fix (try the backup model) or Stop.
+        Returns the backup model's answer, or None if they pressed neither button."""
+        decision = self._approval.request_decision(error_category)
+        if decision == 'accept':
+            recovery.approve(self.MANUAL_BACKUP_MODEL)
+            self._approval.announce("🔄 Attempting manual AI recovery...")
+            try:
+                response = self._ask(client, self.MANUAL_BACKUP_MODEL, messages, backup=True)
+            except Exception as error:
+                self._approval.announce(f"❌ Backup AI failed: {str(error)[:200]}")
+                raise
+            self._approval.announce("✅ Backup AI successfully recovered!")
+            return response
+        if decision == 'reject':
+            self._approval.announce("🛑 Manual recovery cancelled.")
+            raise RuntimeError("Manual AI recovery rejected by engineer")
+        return None
+
     @staticmethod
-    def _call_model(client: OpenAI, model: str, messages: List[Dict], backup: bool = False) -> str:
-        response = client.chat.completions.create(
+    def _ask(client: OpenAI, model: str, messages: List[Dict], backup: bool = False) -> str:
+        reply = client.chat.completions.create(
             model=model, messages=messages, temperature=0.3, max_tokens=4096)
-        content = response.choices[0].message.content
+        content = reply.choices[0].message.content
         if backup and not content:
             raise RuntimeError("Backup AI returned an empty response")
         return content
 
     @staticmethod
     def _classify_error(error: Exception) -> str:
-        """A short, user-friendly category for the engineering alert."""
+        """A short category for the engineering alert."""
         text = str(error).lower()
         if 'context_length' in text or 'maximum context' in text or 'too long' in text:
             return 'Context length exceeded - document too large for AI processing'
@@ -232,12 +230,9 @@ Return JSON array with enhanced workaround fields."""
             return 'Invalid request to AI service'
         return f'AI processing error: {str(error)[:200]}'
 
-    # Reading the answer
-
     @staticmethod
     def _parse_json_array(response: str) -> Optional[List]:
-        """The JSON array inside a reply (it may be wrapped in markdown), or None if there is none.
-        Raises json.JSONDecodeError when something array-shaped is not valid JSON."""
+        """The JSON array inside a reply (it may be wrapped in markdown), or None if there is none."""
         match = re.search(r'\[.*\]', response, re.DOTALL)
         if not match:
             return None
@@ -245,8 +240,8 @@ Return JSON array with enhanced workaround fields."""
         return parsed if isinstance(parsed, list) else None
 
     @staticmethod
-    def _validated_clauses(items: Optional[List]) -> List[Dict]:
-        """Keep objects that identify a clause by its type or its text; drop everything else."""
+    def _valid_clauses(items: Optional[List]) -> List[Dict]:
+        """Keep objects that have a clause type or clause text; drop everything else."""
         clauses = []
         for item in items or []:
             if isinstance(item, dict) and (item.get('clause_type') or item.get('clause_text')):

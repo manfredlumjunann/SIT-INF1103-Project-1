@@ -1,9 +1,5 @@
-"""Notification channels.
-
-Notifier and ApprovalChannel are interfaces: they only say what a channel must be able to do.
-TelegramNotifier is the one implementation, so Telegram could be swapped for e-mail or Slack
-without touching the code that raises alerts or asks an engineer for a decision.
-"""
+"""Where messages and decisions go. Telegram is the only channel for now, but the rest of the
+code depends on the two interfaces below, so another channel could be swapped in."""
 
 import logging
 import os
@@ -17,23 +13,23 @@ logger = logging.getLogger('contract-analyzer')
 
 
 class Notifier(ABC):
-    """Can deliver a message to a recipient."""
+    """Can deliver a message to someone."""
 
     @abstractmethod
     def send(self, message: str, recipient: str) -> None:
-        """Deliver message to recipient. Must not raise when delivery fails."""
+        """Deliver the message. Must not raise if delivery fails."""
 
 
 class ApprovalChannel(ABC):
-    """Can tell the engineering team about a problem and wait for their decision."""
+    """Can tell the engineers about a problem and wait for their answer."""
 
     @abstractmethod
     def request_decision(self, prompt: str) -> str:
-        """Show prompt to the team and block until they choose; returns 'accept' or 'reject'."""
+        """Show the prompt and wait; returns 'accept' or 'reject'."""
 
     @abstractmethod
     def announce(self, message: str) -> None:
-        """Post a progress message to the team."""
+        """Post a progress message to the engineers."""
 
 
 class TelegramNotifier(Notifier, ApprovalChannel):
@@ -111,7 +107,7 @@ class TelegramNotifier(Notifier, ApprovalChannel):
 
     def _wait_for_reply(self, last_update_id: int) -> Tuple[str, int]:
         """Block until someone presses a button in the engineering group."""
-        logger.info("Telegram listener ACTIVE. Waiting for button press...")
+        logger.info("Waiting for a Telegram button press...")
         while True:
             payload = {'offset': last_update_id + 1, 'timeout': 10, 'allowed_updates': ['callback_query']}
             try:
@@ -125,7 +121,7 @@ class TelegramNotifier(Notifier, ApprovalChannel):
                         if str(callback['message']['chat']['id']) != str(self._group_chat_id):
                             continue
                         choice = callback.get('data')
-                        # Acknowledge the press by removing the buttons
+                        # Remove the buttons so the same alert cannot be answered twice
                         requests.post(self._url('editMessageReplyMarkup'), json={
                             'chat_id': callback['message']['chat']['id'],
                             'message_id': callback['message']['message_id'],

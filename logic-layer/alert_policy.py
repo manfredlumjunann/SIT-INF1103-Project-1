@@ -1,8 +1,7 @@
-"""Alerts raised when an analysis flags many clauses.
+"""Alerts for analyses that flag many clauses.
 
-AlertPolicy holds a list of AlertRule objects and asks each one the same question; it never
-checks which kind of rule it has. New kinds of alert are new AlertRule subclasses.
-"""
+AlertPolicy asks every AlertRule the same question and never checks what kind of rule it has,
+so a new kind of alert is just a new AlertRule subclass."""
 
 from abc import ABC, abstractmethod
 from typing import Optional, Sequence
@@ -18,7 +17,7 @@ class AlertRule(ABC):
 
     @abstractmethod
     def matches(self, total_flagged: int) -> bool:
-        """True when an analysis with this many flagged clauses should trigger this rule."""
+        """Should an analysis with this many flagged clauses trigger the rule?"""
 
     def notify(self, analysis: Analysis, owner: User) -> None:
         counts = analysis.counts()
@@ -35,7 +34,7 @@ class AlertRule(ABC):
 
 
 class ClauseCountAlertRule(AlertRule):
-    """Triggers when the flagged-clause count is within [min_flagged, max_flagged]."""
+    """Matches when the number of flagged clauses is between min_flagged and max_flagged."""
 
     def __init__(self, notifier: Notifier, recipient: str, min_flagged: int,
                  max_flagged: Optional[int] = None) -> None:
@@ -53,7 +52,7 @@ class AlertPolicy:
         self._rules = list(rules)
 
     def evaluate(self, analysis: Analysis, owner: User) -> None:
-        """Run the first rule that matches this analysis."""
+        """Run the first rule that matches."""
         total = len(analysis.clauses)
         for rule in self._rules:
             if rule.matches(total):

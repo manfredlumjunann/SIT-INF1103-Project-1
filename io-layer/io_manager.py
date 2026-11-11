@@ -1,5 +1,5 @@
-"""IO Manager: the HTTP boundary. It reads requests, checks input, calls the managers and shapes
-the JSON the browser renders. It holds no business rules and never touches the database directly."""
+"""The HTTP side of the app: reads requests, checks input, calls the managers and shapes the
+JSON the browser shows. It holds no business rules and never queries the database itself."""
 
 import functools
 import logging
@@ -8,7 +8,7 @@ import secrets
 import tempfile
 from datetime import timedelta
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Sequence
+from typing import Callable, Dict, Optional, Sequence
 
 from flask import Flask, Response, g, jsonify, request, session
 from werkzeug.utils import secure_filename
@@ -49,7 +49,7 @@ class IOManager:
 
     def _configure(self, secret_key: Optional[str]) -> None:
         self._flask.config['MAX_CONTENT_LENGTH'] = self.MAX_UPLOAD_BYTES
-        # SECRET_KEY signs the login cookie; without a fixed key everyone is signed out on restart
+        # Without a fixed SECRET_KEY everyone is signed out whenever the server restarts
         self._flask.secret_key = secret_key or secrets.token_hex(32)
         if not secret_key:
             logger.warning("SECRET_KEY not set in .env - using a temporary key; sessions reset on restart")
@@ -108,8 +108,7 @@ class IOManager:
         return wrapper
 
     def _admin_required(self, view: Callable) -> Callable:
-        """Signed in as an admin. Everyone else gets 403, so admin data is protected by the
-        server and not by which page the browser happens to load."""
+        """Admins only. Checked on the server, so admin data is not protected just by hiding the page."""
         @functools.wraps(view)
         @self._login_required
         def wrapper(*args, **kwargs):
@@ -194,11 +193,11 @@ class IOManager:
 
     @staticmethod
     def _analysis_error_response(error: Exception) -> Response:
-        """Log the full error server-side and send the user a generic message.
-        Raw exception text can contain file paths or AI provider responses, so it is never returned."""
+        """Log the real error and send the user a generic message with a reference.
+        The raw error can contain file paths or AI provider text, so it is never returned."""
         reference = secrets.token_hex(4)
         if isinstance(error, RuntimeError):
-            # AI failover exhausted
+            # Every AI model failed
             logger.warning("AI service unavailable [ref %s]: %s", reference, error)
             return jsonify({'error': 'The AI service is currently unavailable. Please try again in a few minutes.',
                             'reference': reference}), 503
@@ -234,7 +233,7 @@ class IOManager:
         if analysis is None:
             return jsonify({'error': 'Analysis not found'}), 404
         if analysis.status is AnalysisStatus.PROCESSING:
-            # The pipeline still needs this record to save its result
+            # The pipeline still needs the record to save its result
             return jsonify({'error': 'This analysis is still in progress. Try again once it has finished.'}), 409
         self._data.analyses.delete(analysis_id)
         return jsonify({'deleted': analysis_id})

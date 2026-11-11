@@ -1,4 +1,4 @@
-"""Repositories: the only classes that talk to the database about one kind of entity."""
+"""Everything that reads or writes the database goes through one repository per kind of entity."""
 
 import hashlib
 import json

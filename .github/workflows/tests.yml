@@ -7,10 +7,26 @@ on:
 jobs:
   tests:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql+psycopg://postgres:test@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
-      - name: Run the automated tests in Docker (no live AI, throwaway PostgreSQL)
-        run: docker compose -f docker-compose.test.yml -p inf1103-tests run --rm tests
-      - name: Clean up
-        if: always()
-        run: docker compose -f docker-compose.test.yml -p inf1103-tests down -v
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install dependencies
+        run: pip install -r logic-layer/requirements.txt
+      - name: Run the automated tests (no live AI, throwaway PostgreSQL)
+        run: python tests/run_report.py

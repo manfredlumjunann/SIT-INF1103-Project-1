@@ -12,8 +12,8 @@ logger = logging.getLogger('contract-analyzer')
 
 
 class AuthError(Exception):
-    """A sign-in or registration problem that can be shown to the user.
-    `reason` is 'invalid' (bad input), 'conflict' (already exists) or 'unauthorized'."""
+    """A registration or login problem that is safe to show the user.
+    reason is 'invalid' (bad input), 'conflict' (already exists) or 'unauthorized'."""
 
     def __init__(self, message: str, reason: str) -> None:
         super().__init__(message)
@@ -51,8 +51,8 @@ class AuthService:
         return user
 
     def seed_admin_from_env(self) -> None:
-        """Create the admin account named by ADMIN_USERNAME / ADMIN_PASSWORD, if it does not exist
-        yet. Registration only ever creates customers, so this is how an admin is made."""
+        """Create the admin named by ADMIN_USERNAME / ADMIN_PASSWORD if it does not exist yet.
+        Registration only creates customers, so this is the only way to get an admin."""
         username = (os.getenv('ADMIN_USERNAME') or '').strip().lower()
         password = os.getenv('ADMIN_PASSWORD') or ''
         if not username and not password:

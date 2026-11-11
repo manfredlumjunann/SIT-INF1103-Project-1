@@ -2,15 +2,13 @@
 
 import unittest
 
-from alembic import command as alembic_command
-from alembic.config import Config as AlembicConfig
 from sqlalchemy import inspect as sql_inspect
 
-from support import ROOT, TEST_DATABASE_URL, ReportedCase, _engine, reset_database, run_sql
+from support import TEST_DATABASE_URL, ReportedCase, _engine, reset_database, run_sql
 
-from data_manager import DataManager, expected_schema_revision
+from data_manager import DataManager
 from database import Database
-from entities import AnalysisStatus, RiskLevel, Role, Verification
+from entities import AnalysisStatus, Base, RiskLevel, Role, Verification
 from repositories import AnalysisRepository, ReferenceRepository, UserRepository
 
 
@@ -43,13 +41,9 @@ class DataManagerTests(DataCase):
 
     def test_init_storage_and_counts(self):
         self.data.users.create('alice', 'hash')
-        self.verify('init_storage() checks the schema and reports record counts',
+        self.verify('init_storage() reports record counts',
                     'one user created, then init_storage()',
                     {'users': 1, 'analyses': 0, 'references': 0}, self.data.init_storage())
-
-    def test_schema_is_at_the_newest_migration(self):
-        self.verify('The test database is at the newest Alembic revision', 'Database.schema_revision()',
-                    expected_schema_revision(), Database(TEST_DATABASE_URL).schema_revision())
 
     def test_database_helpers(self):
         self.verify('postgres:// URLs are given the psycopg 3 driver', "Database.normalise_url('postgres://u:p@h/db')",
@@ -216,30 +210,28 @@ class CompositionTests(DataCase):
                     ((1, 2, 2, 1), (0, 0, 0, 1), 'an_001'), (before, counts(), deleted.id))
 
 
-class MigrationTests(DataCase):
-    def test_upgrade_removes_duplicate_references_and_drops_category(self):
-        config = AlembicConfig(str(ROOT / 'data-layer' / 'alembic.ini'))
-        try:
-            alembic_command.downgrade(config, '-1')
-            columns_before = {c['name'] for c in sql_inspect(_engine).get_columns('clauses')}
-            run_sql("INSERT INTO users (id, username, password_hash) VALUES ('us_001', 'alice', 'h')")
-            run_sql("INSERT INTO analyses (id, owner_id, contract_text, contract_hash) VALUES ('an_001', 'us_001', 't', 'h')")
-            run_sql("INSERT INTO clauses (id, analysis_id, position, risk_level) VALUES (1, 'an_001', 1, 'HIGH')")
-            run_sql("INSERT INTO legal_references (id, url, title, domain) VALUES ('ref_a', 'u', 't', 'd')")
-            run_sql("INSERT INTO clause_references (clause_id, position, reference_id, snippet) "
-                    "VALUES (1, 1, 'ref_a', 'first'), (1, 2, 'ref_a', 'duplicate')")
-        finally:
-            alembic_command.upgrade(config, 'head')
-        rows = [tuple(r) for r in run_sql('SELECT position, snippet FROM clause_references')]
-        columns_after = {c['name'] for c in sql_inspect(_engine).get_columns('clauses')}
-        primary_key = sql_inspect(_engine).get_pk_constraint('clause_references')['constrained_columns']
-        self.verify('Upgrading keeps the first of two duplicate (clause, reference) rows',
-                    'Old schema holds (clause 1, ref_a) twice, positions 1 and 2; alembic upgrade head',
-                    [(1, 'first')], rows)
-        self.verify('The new primary key is (clause_id, reference_id)', 'clause_references primary key',
-                    ['clause_id', 'reference_id'], primary_key)
-        self.verify('clauses.category is gone after the upgrade', 'columns of clauses before / after',
-                    (True, False), ('category' in columns_before, 'category' in columns_after))
+class TableCreationTests(DataCase):
+    def test_init_storage_creates_missing_tables(self):
+        Base.metadata.drop_all(_engine)
+        before = sql_inspect(_engine).get_table_names()
+        counts = self.data.init_storage()
+        inspector = sql_inspect(_engine)
+        self.verify('init_storage() creates every table that is missing',
+                    'Drop all tables, then init_storage()',
+                    ([], ['analyses', 'clause_references', 'clauses', 'legal_references', 'users'],
+                     {'users': 0, 'analyses': 0, 'references': 0}),
+                    (before, sorted(inspector.get_table_names()), counts))
+        self.verify('clause_references is keyed by (clause_id, reference_id) and clauses has no category column',
+                    'Primary key and columns after the tables are created',
+                    (['clause_id', 'reference_id'], False),
+                    (inspector.get_pk_constraint('clause_references')['constrained_columns'],
+                     'category' in {c['name'] for c in inspector.get_columns('clauses')}))
+
+    def test_existing_data_is_kept(self):
+        self.data.users.create('alice', 'hash')
+        self.data.init_storage()
+        self.verify('Running init_storage() again leaves existing tables and rows alone',
+                    'Create one user, then init_storage()', ['alice'], [u.username for u in self.data.users.list()])
 
 
 if __name__ == '__main__':

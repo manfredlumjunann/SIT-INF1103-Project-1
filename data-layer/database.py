@@ -3,13 +3,14 @@
 import logging
 import os
 from contextlib import contextmanager
-from typing import Iterator, Optional
+from typing import Iterator
 
-from alembic.runtime.migration import MigrationContext
 from sqlalchemy import create_engine, text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session, sessionmaker
+
+from entities import Base
 
 logger = logging.getLogger(__name__)
 
@@ -69,10 +70,9 @@ class Database:
             logger.warning("Database %s is not reachable: %s", self.safe_url, error)
             return False
 
-    def schema_revision(self) -> Optional[str]:
-        """The Alembic revision the database is at, or None if it was never migrated."""
-        with self._engine.connect() as connection:
-            return MigrationContext.configure(connection).get_current_revision()
+    def create_tables(self) -> None:
+        """Create the tables, and the id sequences, that do not exist yet. Existing tables are left as they are."""
+        Base.metadata.create_all(self._engine)
 
     def dispose(self) -> None:
         """Close every pooled connection (e.g. at shutdown or between tests)."""

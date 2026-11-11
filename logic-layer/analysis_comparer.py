@@ -40,9 +40,8 @@ class Comparison:
 
 class AnalysisComparer:
     def compare(self, first: Analysis, second: Analysis) -> Comparison:
-        """Pair up the clauses of two analyses without calling the AI, so the same two analyses
-        always give the same comparison. Each clause is used at most once; when a key appears
-        several times, clauses pair up in the order they were flagged."""
+        """Pair up the clauses of two analyses. No AI is involved, so the same two analyses always
+        give the same result. Each clause is used once; repeated keys pair up in flagged order."""
         pairs: List[Tuple[int, int, str]] = []
         left_first = list(range(len(first.clauses)))
         left_second = list(range(len(second.clauses)))

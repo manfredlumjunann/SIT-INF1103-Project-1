@@ -1,8 +1,5 @@
-"""Domain entities, one class per table.
-
-Each entity enforces its own rules: state that has rules (status, role, risk level,
-verification) is private and changes only through methods such as Analysis.mark_done().
-"""
+"""The tables as classes. Each entity checks its own rules: values that have rules (status, role,
+risk level, verification) are private and only change through methods such as Analysis.mark_done()."""
 
 import enum
 import hashlib
@@ -96,7 +93,7 @@ def _require_text(value, field: str) -> str:
 
 
 class Base(DeclarativeBase):
-    # Fixed constraint names so Alembic migrations stay identical on every machine
+    # Named constraints give readable database error messages (repositories look for 'uq_users_username')
     metadata = MetaData(naming_convention={
         'ix': 'ix_%(column_0_label)s',
         'uq': 'uq_%(table_name)s_%(column_0_name)s',

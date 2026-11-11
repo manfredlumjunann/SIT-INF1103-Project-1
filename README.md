@@ -26,7 +26,8 @@ Design diagrams (Mermaid source and PNGs) are in [`docs/`](docs).
 | AI | `ai-layer/` | `AIManager` (prompts, model failover, response validation), `RecoverySession`, `FirecrawlResearcher` |
 | Data | `data-layer/` | `DataManager`, `Database`, `Repository` <<abstract>> with `UserRepository`, `ReferenceRepository`, `AnalysisRepository`, and the entities `User`, `Analysis`, `Clause`, `ClauseReference`, `LegalReference` |
 
-Database changes are Alembic migrations in `data-layer/migrations`; they are applied when the container starts.
+The app creates its database tables from the entity classes (`data-layer/entities.py`) when it starts. Tables that
+already exist are not changed, so after changing an entity, delete the old database with `docker compose down -v`.
 
 ## Telegram notifications
 
@@ -43,22 +44,18 @@ Database changes are Alembic migrations in `data-layer/migrations`; they are app
 
 ## Running the tests
 
-The tests never call a live AI or Telegram. They run in Docker against a throwaway PostgreSQL database:
+The tests never call a live AI or Telegram. The report lists every test case with its input, expected result,
+actual result and `test case N pass`, then a summary. They run in GitHub Actions on every push
+([`.github/workflows/tests.yml`](.github/workflows/tests.yml)), against a PostgreSQL service container.
 
-```bash
-docker compose -f docker-compose.test.yml -p inf1103-tests run --rm tests
-docker compose -f docker-compose.test.yml -p inf1103-tests down -v
-```
-
-The report lists every test case with its input, expected result, actual result and
-`test case N pass`, then a summary. The same suite runs in GitHub Actions on every push
-([`.github/workflows/tests.yml`](.github/workflows/tests.yml)).
+To run them yourself, point `TEST_DATABASE_URL` at a throwaway PostgreSQL database (every test empties its tables)
+and run `python tests/run_report.py`.
 
 | File | What it checks |
 |---|---|
 | `tests/test_api_behaviour.py` | All 13 HTTP endpoints: auth, analysis, caching, history, compare, admin, health, Telegram thresholds |
 | `tests/test_ai_notifications.py` | Model failover, Fix / Stop recovery, error categories, response validation |
 | `tests/test_oop_design.py` | Abstract classes, inheritance, overriding, interfaces, polymorphism, encapsulation, aggregation |
-| `tests/test_data_layer.py` | Repositories, entities, composition (cascade delete), the schema migration |
+| `tests/test_data_layer.py` | Repositories, entities, composition (cascade delete), table creation |
 
 Without `TEST_DATABASE_URL` the tests are skipped. They never use `DATABASE_URL`.

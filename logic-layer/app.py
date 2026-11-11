@@ -1,8 +1,4 @@
-"""Contract Clause Analyzer - application entry point (gunicorn imports `app` from here).
-
-Application is the only place that knows which concrete classes exist: it builds each manager
-and hands it the collaborators it needs.
-"""
+"""Entry point: gunicorn imports `app` from this module."""
 
 import logging
 import os
@@ -25,7 +21,7 @@ logger = logging.getLogger('contract-analyzer')
 
 
 class Application:
-    # Telegram chats told about analyses with many flagged clauses (override with environment variables)
+    # Telegram chats for big analyses; ALERT_MEDIUM_CHAT_ID / ALERT_HIGH_CHAT_ID override them
     DON_ID = '667740965'
     MAN_ID = '1116849976'
     MEDIUM_ALERT_RANGE = (7, 8)
@@ -33,10 +29,9 @@ class Application:
 
     @staticmethod
     def build() -> Flask:
-        """Connect to storage, wire the managers together and return the Flask application."""
+        """Create every manager, connect them and return the Flask app."""
         data = DataManager.from_env()
-        counts = data.init_storage()
-        logger.info("Loaded saved records: %s", counts)
+        logger.info("Loaded saved records: %s", data.init_storage())
 
         notifier = TelegramNotifier.from_env()
         alerts = AlertPolicy([
@@ -47,11 +42,9 @@ class Application:
                                  os.getenv('ALERT_HIGH_CHAT_ID') or Application.MAN_ID,
                                  Application.HIGH_ALERT_FROM),
         ])
-        analyses = AnalysisService(
-            data,
-            AIManager(os.getenv('OPENROUTER_API_KEY'), approval=notifier),
-            FirecrawlResearcher(os.getenv('FIRECRAWL_API_KEY')),
-            alerts)
+        ai = AIManager(os.getenv('OPENROUTER_API_KEY'), approval=notifier)
+        analyses = AnalysisService(data, ai, FirecrawlResearcher(os.getenv('FIRECRAWL_API_KEY')), alerts)
+
         interrupted = analyses.recover_interrupted()
         if interrupted:
             logger.info("Marked %d interrupted analyses as failed", interrupted)
@@ -67,8 +60,7 @@ class Application:
 
 
 load_dotenv()
-# Server-side log (visible with `docker compose logs`). Error details go here,
-# never into responses sent to the browser.
+# Details go to the server log, never into responses sent to the browser
 logging.basicConfig(level=logging.INFO, format='%(asctime)s %(levelname)s [%(name)s] %(message)s')
 
 app = Application.build()

@@ -1,4 +1,4 @@
-"""The analysis pipeline: detect clauses, research case law, improve workarounds, save, alert."""
+"""Runs one analysis end to end: detect clauses, research case law, improve workarounds, save, alert."""
 
 import logging
 from datetime import datetime
@@ -23,9 +23,8 @@ class AnalysisService:
 
     def analyze(self, owner: User, filename: str, contract_text: str,
                 context: str) -> Tuple[Analysis, bool]:
-        """Return (analysis, was_cached). An identical contract + context returns the saved result;
-        otherwise the pipeline runs and the result is saved. Empty results are never reused, so a
-        bad AI response does not get stuck in the cache."""
+        """Returns (analysis, was_cached). The same contract and context gives the saved result
+        back. Results with no clauses are never reused, so one bad AI answer cannot get stuck."""
         contract_hash = self._data.analyses.compute_contract_hash(contract_text, context)
         cached = self._data.analyses.find_by_hash(owner.id, contract_hash)
         if cached and cached.clauses:
@@ -46,8 +45,8 @@ class AnalysisService:
         return saved, False
 
     def recover_interrupted(self) -> int:
-        """Mark analyses that a restart interrupted as failed; returns how many there were.
-        Single worker process: anything still 'processing' at startup can never finish."""
+        """Mark analyses left 'processing' by a restart as failed (there is one worker, so they
+        can never finish). Returns how many there were."""
         stale = self._data.analyses.list(status=AnalysisStatus.PROCESSING)
         for analysis in stale:
             self._data.analyses.fail(analysis.id)
@@ -66,8 +65,7 @@ class AnalysisService:
         }
 
     def _run_pipeline(self, contract_text: str, context: str) -> List[Dict]:
-        """AI clause detection, case-law research and workaround enhancement."""
-        # One recovery session for the whole analysis, so engineers are alerted at most once
+        # One recovery session per analysis, so the engineers are alerted at most once
         recovery = RecoverySession()
 
         logger.info("Detecting clauses with AI...")
@@ -86,7 +84,7 @@ class AnalysisService:
 
     @staticmethod
     def _with_defaults(clause: Dict) -> Dict:
-        """Make sure every field exists and the risk level is one the system understands."""
+        """Fill in missing fields; an unknown risk level becomes MEDIUM."""
         clause.setdefault('issue_description', 'Potential risk identified')
         clause.setdefault('workaround', 'Consult legal counsel')
         clause.setdefault('legal_references', [])

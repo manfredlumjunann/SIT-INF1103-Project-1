@@ -25,8 +25,6 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 import requests
-from alembic import command as alembic_command
-from alembic.config import Config as AlembicConfig
 from sqlalchemy import create_engine, text as sql_text
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -59,20 +57,20 @@ DON_CHAT = '667740965'
 MAN_CHAT = '1116849976'
 
 _engine = create_engine(TEST_DATABASE_URL)
-_migrated = False
+_tables_created = False
 
 
-def migrate_database() -> None:
-    global _migrated
-    if not _migrated:
-        os.environ['DATABASE_URL'] = TEST_DATABASE_URL
-        alembic_command.upgrade(AlembicConfig(str(ROOT / 'data-layer' / 'alembic.ini')), 'head')
-        _migrated = True
+def create_tables() -> None:
+    global _tables_created
+    if not _tables_created:
+        from database import Database
+        Database(TEST_DATABASE_URL).create_tables()
+        _tables_created = True
 
 
 def reset_database() -> None:
     """Empty every table and restart the id numbering so each test starts clean."""
-    migrate_database()
+    create_tables()
     with _engine.begin() as connection:
         connection.execute(sql_text(
             'TRUNCATE clause_references, clauses, analyses, legal_references, users RESTART IDENTITY'))
@@ -87,7 +85,7 @@ def run_sql(statement: str, **params):
 
 def load_app(env=None):
     """Import logic-layer/app.py afresh with the test environment and return the module."""
-    migrate_database()
+    create_tables()
     with patch.dict(os.environ, env or {}):
         spec = importlib.util.spec_from_file_location('logic_app', ROOT / 'logic-layer' / 'app.py')
         module = importlib.util.module_from_spec(spec)

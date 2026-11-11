@@ -14,3 +14,6 @@ venv/
 # IDE settings
 .vscode/
 .idea/
+
+# Exported Docker images
+*.tar

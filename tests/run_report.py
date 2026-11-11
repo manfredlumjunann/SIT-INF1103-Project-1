@@ -1,7 +1,9 @@
 """Runs every test and prints a human-checkable report: each test case shows its input, the
 expected result, the actual result and "test case N pass", followed by a summary.
 
-    docker compose -f docker-compose.test.yml -p inf1103-tests run --rm tests
+    TEST_DATABASE_URL=postgresql+psycopg://user:password@host:5432/db python tests/run_report.py
+
+The database must be disposable: every test empties its tables.
 """
 
 import sys
