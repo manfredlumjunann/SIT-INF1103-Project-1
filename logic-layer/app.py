@@ -1,4 +1,4 @@
-"""Entry point: gunicorn imports `app` from this module."""
+# Entry point: gunicorn imports `app` from this module.
 
 import logging
 import os
@@ -31,9 +31,9 @@ class Application:
     MEDIUM_ALERT_RANGE = (7, 8)
     HIGH_ALERT_FROM = 9
 
+    # Create every manager, connect them and return the Flask app.
     @staticmethod
     def build() -> Flask:
-        """Create every manager, connect them and return the Flask app."""
         data = DataManager.from_env()
         logger.info("Loaded saved records: %s", data.init_storage())
 

@@ -1,5 +1,5 @@
-"""Telegram is the only channel for now, but the rest of the code depends on the Notifier and
-ApprovalChannel interfaces, so another channel could be swapped in."""
+# Telegram is the only channel for now, but the rest of the code depends on the Notifier and
+# ApprovalChannel interfaces, so another channel could be swapped in.
 
 import logging
 import os
@@ -87,8 +87,8 @@ class TelegramNotifier(Notifier, ApprovalChannel):
         except Exception as exc:
             logger.error("Failed to send Telegram error notification: %s", exc)
 
+    # Block until someone presses a button in the engineering group.
     def _wait_for_reply(self, last_update_id: int) -> Tuple[str, int]:
-        """Block until someone presses a button in the engineering group."""
         logger.info("Waiting for a Telegram button press...")
         while True:
             payload = {'offset': last_update_id + 1, 'timeout': 10, 'allowed_updates': ['callback_query']}

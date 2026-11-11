@@ -1,0 +1,190 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1980" height="1370" viewBox="0 0 1980 1370">
+<defs><marker id="tri" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L13,7 L1,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="dia" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#222" stroke="#222" stroke-width="1"/></marker><marker id="diaw" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="arr" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#222" stroke-width="1.3"/></marker><marker id="arrf" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11 Z" fill="#222" stroke="#222" stroke-width="1"/></marker></defs>
+<rect width="1980" height="1370" fill="#ffffff"/>
+<text x="24" y="32" font-family="'Segoe UI', Arial, sans-serif" font-size="18" font-weight="700" fill="#111">Complete class diagram: every class and how they connect</text>
+<text x="24" y="52" font-family="'Segoe UI', Arial, sans-serif" font-size="12" fill="#555">Colour = layer. Boxes show names only; the detailed diagrams list attributes and methods.</text>
+<path d="M975.0,100.0 L975.0,170.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<text x="975.0" y="130.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">creates and wires everything</text>
+<path d="M890.0,185.0 L415.0,191.5" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="431.1" y="205.3" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1..*</text>
+<path d="M115.0,280.0 L115.0,240.0 L330.0,240.0 L330.0,213.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M330.0,280.0 L330.0,240.0 L330.0,240.0 L330.0,213.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M545.0,280.0 L545.0,240.0 L330.0,240.0 L330.0,213.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M975.0,200.0 L975.0,345.0 L545.0,345.0 L545.0,400.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M975.0,200.0 L975.0,345.0 L760.0,345.0 L760.0,400.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M975.0,200.0 L975.0,345.0 L975.0,345.0 L975.0,400.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M975.0,200.0 L975.0,345.0 L1190.0,345.0 L1190.0,400.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M760.0,430.0 L760.0,520.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<path d="M975.0,430.0 L975.0,520.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<path d="M545.0,430.0 L545.0,520.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<path d="M545.0,550.0 L545.0,640.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="535.0" y="570.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<text x="555.0" y="628.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">0..*</text>
+<path d="M1190.0,430.0 L1190.0,520.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1190.0,550.0 L1190.0,640.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="1200.0" y="628.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">0..*</text>
+<path d="M1190.0,760.0 L1190.0,683.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M1275.0,661.5 L1320.0,661.5" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1405.0,760.0 L1405.0,683.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<path d="M1490.0,775.0 L1620.0,775.0 L1620.0,683.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<path d="M1275.0,415.0 L1535.0,415.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1405.0" y="410.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">uses</text>
+<path d="M1705.0,415.0 L1750.0,415.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1620.0,430.0 L1620.0,640.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1620.0" y="530.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">asks engineers via</text>
+<path d="M1139.0,400.0 L1139.0,200.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M675.0,415.0 L653.0,415.0 L653.0,895.0 L675.0,895.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M890.0,415.0 L868.0,415.0 L868.0,880.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1105.0,415.0 L1083.0,415.0 L1083.0,880.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<path d="M1175.0,895.0 L1320.0,895.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="1304.0" y="889.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M725.0,910.0 L725.0,960.0 L330.0,960.0 L330.0,1010.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="340.0" y="998.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M825.0,910.0 L825.0,960.0 L545.0,960.0 L545.0,1010.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="555.0" y="998.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M925.0,910.0 L925.0,960.0 L760.0,960.0 L760.0,1010.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="770.0" y="998.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M1025.0,910.0 L1025.0,960.0 L975.0,960.0 L975.0,1010.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="985.0" y="998.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M330.0,1040.0 L330.0,1085.0 L652.0,1085.0 L652.0,1130.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M545.0,1040.0 L545.0,1085.0 L652.0,1085.0 L652.0,1130.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M760.0,1040.0 L760.0,1085.0 L652.0,1085.0 L652.0,1130.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M975.0,1040.0 L975.0,1085.0 L652.0,1085.0 L652.0,1130.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<path d="M675.0,1025.0 L630.0,1025.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="652.5" y="1020.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">uses</text>
+<path d="M1320.0,1025.0 L1275.0,1025.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1304.0" y="1019.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">*</text>
+<text x="1291.0" y="1039.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M1490.0,1025.0 L1535.0,1025.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="1506.0" y="1039.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<text x="1519.0" y="1019.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1..*</text>
+<path d="M1705.0,1025.0 L1750.0,1025.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="1721.0" y="1039.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<text x="1734.0" y="1019.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">0..1</text>
+<path d="M1620.0,1040.0 L1620.0,1130.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="1610.0" y="1060.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<text x="1630.0" y="1118.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">0..*</text>
+<path d="M1535.0,1145.0 L1490.0,1145.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1519.0" y="1139.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">*</text>
+<text x="1506.0" y="1159.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<path d="M1835.0,1040.0 L1835.0,1090.0 L1190.0,1090.0 L1190.0,1040.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="1500.0" y="1084.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">author</text>
+<text x="1825.0" y="1060.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">*</text>
+<text x="1180.0" y="1060.0" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#222" stroke="#fff" stroke-width="3.5" paint-order="stroke">1</text>
+<rect x="890" y="70" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="975.0" y="86" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Application</text>
+<rect x="890" y="170" width="170" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="975.0" y="186" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">IOManager</text>
+<rect x="245" y="170" width="170" height="43" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="330.0" y="186" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;abstract&#187;</text>
+<text x="330.0" y="199" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">DocumentExtractor</text>
+<rect x="30" y="280" width="170" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="115.0" y="296" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">PdfExtractor</text>
+<rect x="245" y="280" width="170" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="330.0" y="296" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">DocxExtractor</text>
+<rect x="460" y="280" width="170" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="545.0" y="296" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">TxtExtractor</text>
+<rect x="460" y="400" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="545.0" y="416" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AnalysisComparer</text>
+<rect x="675" y="400" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="760.0" y="416" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AuthService</text>
+<rect x="890" y="400" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="975.0" y="416" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ReviewService</text>
+<rect x="1105" y="400" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="1190.0" y="416" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AnalysisService</text>
+<rect x="460" y="520" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="545.0" y="536" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Comparison</text>
+<rect x="460" y="640" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="545.0" y="656" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ClauseMatch</text>
+<rect x="675" y="520" width="170" height="43" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="760.0" y="536" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;exception&#187;</text>
+<text x="760.0" y="549" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AuthError</text>
+<rect x="890" y="520" width="170" height="43" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="975.0" y="536" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;exception&#187;</text>
+<text x="975.0" y="549" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ReviewError</text>
+<rect x="1105" y="520" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="1190.0" y="536" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AlertPolicy</text>
+<rect x="1105" y="640" width="170" height="43" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="1190.0" y="656" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;abstract&#187;</text>
+<text x="1190.0" y="669" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">AlertRule</text>
+<rect x="1105" y="760" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="1190.0" y="776" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">ClauseCountAlertRule</text>
+<rect x="1320" y="640" width="170" height="43" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="1405.0" y="656" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;interface&#187;</text>
+<text x="1405.0" y="669" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">Notifier</text>
+<rect x="1320" y="760" width="170" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="1405.0" y="776" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">TelegramNotifier</text>
+<rect x="1535" y="640" width="170" height="43" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="1620.0" y="656" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;interface&#187;</text>
+<text x="1620.0" y="669" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">ApprovalChannel</text>
+<rect x="1105" y="170" width="170" height="30" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="1190.0" y="186" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">FirecrawlResearcher</text>
+<rect x="1535" y="400" width="170" height="30" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="1620.0" y="416" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">AIManager</text>
+<rect x="1750" y="400" width="170" height="30" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="1835.0" y="416" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">RecoverySession</text>
+<rect x="675" y="880" width="500" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="925.0" y="896" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">DataManager</text>
+<rect x="1320" y="880" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1405.0" y="896" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Database</text>
+<rect x="245" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="330.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">UserRepository</text>
+<rect x="460" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="545.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">ReferenceRepository</text>
+<rect x="675" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="760.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">AnalysisRepository</text>
+<rect x="890" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="975.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700" fill="#111">CommentRepository</text>
+<rect x="567" y="1130" width="170" height="43" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="652.0" y="1146" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" fill="#333">&#171;abstract&#187;</text>
+<text x="652.0" y="1159" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" font-style="italic" fill="#111">Repository</text>
+<rect x="1105" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1190.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">User</text>
+<rect x="1320" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1405.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Analysis</text>
+<rect x="1535" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1620.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">Clause</text>
+<rect x="1750" y="1010" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1835.0" y="1026" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ClauseComment</text>
+<rect x="1535" y="1130" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1620.0" y="1146" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">ClauseReference</text>
+<rect x="1320" y="1130" width="170" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="1405.0" y="1146" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="12" font-weight="700" fill="#111">LegalReference</text>
+<rect x="30" y="360" width="300" height="42" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="40" y="380" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Fan-outs share one line (a &quot;bus&quot;).</text>
+<text x="40" y="395" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Arrows run toward the class being used.</text>
+<rect x="1330" y="70" width="340" height="57" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="1340" y="90" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Application (app.py) is the composition root:</text>
+<text x="1340" y="105" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">it builds every manager and wires them</text>
+<text x="1340" y="120" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">together with constructor injection.</text>
+<rect x="1330" y="150" width="470" height="87" fill="#fffde7" stroke="#9e9d24" stroke-dasharray="4 3"/>
+<text x="1340" y="170" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Each repository stores one entity:</text>
+<text x="1340" y="185" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">UserRepository -&gt; User, ReferenceRepository -&gt; LegalReference,</text>
+<text x="1340" y="200" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">AnalysisRepository -&gt; Analysis, CommentRepository -&gt; ClauseComment.</text>
+<text x="1340" y="215" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Every repository is given the Database by DataManager (see diagram 04).</text>
+<text x="1340" y="230" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#333">Analysis -&gt; User is the owner; enumerations are in diagram 05.</text>
+<rect x="30" y="1200" width="270" height="142" fill="#fff" stroke="#bbb" rx="4"/>
+<text x="40" y="1220" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700">Legend</text>
+<path d="M44.0,1244.0 L94.0,1244.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#tri)"/>
+<text x="104" y="1248" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Inheritance (is-a)</text>
+<path d="M44.0,1262.0 L94.0,1262.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="6 4" marker-end="url(#tri)"/>
+<text x="104" y="1266" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Realisation (implements interface)</text>
+<path d="M44.0,1280.0 L94.0,1280.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#dia)"/>
+<text x="104" y="1284" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Composition (owns, same lifetime)</text>
+<path d="M44.0,1298.0 L94.0,1298.0" fill="none" stroke="#222" stroke-width="1.3" marker-start="url(#diaw)"/>
+<text x="104" y="1302" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Aggregation (has-a, part lives on)</text>
+<path d="M44.0,1316.0 L94.0,1316.0" fill="none" stroke="#222" stroke-width="1.3" marker-end="url(#arr)"/>
+<text x="104" y="1320" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Association (uses)</text>
+<path d="M44.0,1334.0 L94.0,1334.0" fill="none" stroke="#222" stroke-width="1.3" stroke-dasharray="5 4" marker-end="url(#arr)"/>
+<text x="104" y="1338" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Dependency (creates / passes)</text>
+<rect x="330" y="1200" width="150" height="114" fill="#fff" stroke="#bbb" rx="4"/>
+<text x="340" y="1220" font-family="'Segoe UI', Arial, sans-serif" font-size="11" font-weight="700">Legend</text>
+<rect x="344" y="1245" width="26" height="13" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="404" y="1256" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">IO layer</text>
+<rect x="344" y="1263" width="26" height="13" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="404" y="1274" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Logic layer</text>
+<rect x="344" y="1281" width="26" height="13" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="404" y="1292" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">AI layer</text>
+<rect x="344" y="1299" width="26" height="13" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="404" y="1310" font-family="'Segoe UI', Arial, sans-serif" font-size="11" fill="#222">Data layer</text>
+</svg>

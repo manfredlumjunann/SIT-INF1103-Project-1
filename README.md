@@ -44,18 +44,17 @@ already exist are not changed, so after changing an entity, delete the old datab
 
 ## Running the tests
 
-The tests never call a live AI or Telegram. The report lists every test case with its input, expected result,
-actual result and `test case N pass`, then a summary. They run in GitHub Actions on every push
-([`.github/workflows/tests.yml`](.github/workflows/tests.yml)), against a PostgreSQL service container.
+The automated tests are packaged as one Docker image, `inf1103-e2e-combined.tar` (in `inf1103test/`). Inside it are nginx,
+the app, PostgreSQL, a fake AI and a fake Telegram, so **no API keys and no live AI are needed**. Docker is the only requirement.
 
-To run them yourself, point `TEST_DATABASE_URL` at a throwaway PostgreSQL database (every test empties its tables)
-and run `python tests/run_report.py`.
+```bash
+docker load -i inf1103test/inf1103-e2e-combined.tar
+docker run --rm inf1103-e2e
+```
 
-| File | What it checks |
-|---|---|
-| `tests/test_api_behaviour.py` | All 13 HTTP endpoints: auth, analysis, caching, history, compare, admin, health, Telegram thresholds |
-| `tests/test_ai_notifications.py` | Model failover, Fix / Stop recovery, error categories, response validation |
-| `tests/test_oop_design.py` | Abstract classes, inheritance, overriding, interfaces, polymorphism, encapsulation, aggregation |
-| `tests/test_data_layer.py` | Repositories, entities, composition (cascade delete), table creation |
+The run prints every test case with its input, the expected result and the actual result, then a summary
+(`SUMMARY: 41 test cases, 41 pass, 0 FAIL`). The exit code is 0 when every case passes. The cases cover sign-up and login,
+the analysis pipeline and caching, comparing, per-user isolation, Telegram alerts (7 flagged clauses to one chat, 9 or more
+to another), an AI outage recovered through Telegram, and the administrator review feature.
 
-Without `TEST_DATABASE_URL` the tests are skipped. They never use `DATABASE_URL`.
+The `.tar` file is about 250 MB, so it is not stored in Git (`*.tar` is ignored); it is handed over with the submission.

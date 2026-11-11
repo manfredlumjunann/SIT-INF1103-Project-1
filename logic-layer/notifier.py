@@ -1,9 +1,9 @@
 from abc import ABC, abstractmethod
 
 
+# Can deliver a message to someone.
 class Notifier(ABC):
-    """Can deliver a message to someone."""
-
+    # Deliver the message. Must not raise if delivery fails.
     @abstractmethod
     def send(self, message: str, recipient: str) -> None:
-        """Deliver the message. Must not raise if delivery fails."""
+        pass

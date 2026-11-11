@@ -5,9 +5,9 @@ from orm_base import Base
 from legal_reference import LegalReference
 
 
+# Links a clause to a legal reference, with the clause-specific snippet.
+# Shared references survive when an analysis (and its clauses) is deleted.
 class ClauseReference(Base):
-    """Links a clause to a legal reference, with the clause-specific snippet.
-    Shared references survive when an analysis (and its clauses) is deleted."""
     __tablename__ = 'clause_references'
     __table_args__ = (
         CheckConstraint('position >= 1', name='position_positive'),

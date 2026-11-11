@@ -34,10 +34,10 @@ class User(Base):
     def normalise_username(username) -> str:
         return str(username or '').strip().lower()
 
+    # Check and clean the fields for a new user; raises ValueError if any is invalid.
+    # The password must already be hashed.
     @classmethod
     def validated_fields(cls, username, password_hash, role) -> dict:
-        """Check and clean the fields for a new user; raises ValueError if any is invalid.
-        The password must already be hashed."""
         username = cls.normalise_username(username)
         if not USERNAME_PATTERN.match(username):
             raise ValueError("Username must be 3-30 characters: letters, numbers, '.', '_' or '-'")
@@ -51,9 +51,9 @@ class User(Base):
     def role(self) -> Role:
         return Role(self._role)
 
+    # Promote or demote the user; anything that is not a known role is refused.
     @role.setter
     def role(self, value) -> None:
-        """Promote or demote the user; anything that is not a known role is refused."""
         self._role = Role.parse(value).value
 
     @property

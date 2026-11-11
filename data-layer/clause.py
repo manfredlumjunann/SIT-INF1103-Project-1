@@ -57,14 +57,14 @@ class Clause(Base):
     def risk_level(self) -> RiskLevel:
         return RiskLevel(self._risk_level)
 
+    # SQL condition: the clause is at this risk level.
     @classmethod
     def has_risk_level(cls, level: RiskLevel):
-        """SQL condition: the clause is at this risk level."""
         return cls._risk_level == RiskLevel(level).value
 
+    # Best-effort parse of e.g. 'Page 2, Clause 3(f)'; the original text is kept as raw.
     @staticmethod
     def _parse_location(raw) -> dict:
-        """Best-effort parse of e.g. 'Page 2, Clause 3(f)'; the original text is kept as raw."""
         if raw is None or not str(raw).strip():
             return {'location_page': None, 'location_clause_ref': None, 'location_raw': None}
         text = str(raw).strip()
@@ -76,11 +76,11 @@ class Clause(Base):
             'location_raw': text,
         }
 
+    # Build a clause from one AI clause object; raises ValueError if it is not valid.
+    # Legal references it cites are added to `references` (keyed by id) so the caller can
+    # store each source once however many clauses cite it.
     @classmethod
     def from_ai(cls, position: int, raw: dict, references: Dict[str, LegalReference]) -> 'Clause':
-        """Build a clause from one AI clause object; raises ValueError if it is not valid.
-        Legal references it cites are added to `references` (keyed by id) so the caller can
-        store each source once however many clauses cite it."""
         if not isinstance(raw, dict):
             raise ValueError(f"Clause {position} is not an object")
         clause = cls(

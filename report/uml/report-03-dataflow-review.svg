@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="307" viewBox="0 0 960 307">
+<defs><marker id="tri" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L13,7 L1,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="dia" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#222" stroke="#222" stroke-width="1"/></marker><marker id="diaw" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="arr" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#222" stroke-width="1.3"/></marker><marker id="arrf" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11 Z" fill="#222" stroke="#222" stroke-width="1"/></marker></defs>
+<rect width="960" height="307" fill="#ffffff"/>
+<rect x="15.0" y="6" width="130" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="80.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">Boss (browser)</text>
+<rect x="170.0" y="6" width="140" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="240.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">Customer (browser)</text>
+<rect x="350.0" y="6" width="100" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="400.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">IOManager</text>
+<rect x="505.0" y="6" width="110" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="560.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">ReviewService</text>
+<rect x="670.0" y="6" width="100" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="720.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">DataManager</text>
+<rect x="835.0" y="6" width="90" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="880.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">PostgreSQL</text>
+<line x1="80" y1="36" x2="80" y2="303" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="240" y1="36" x2="240" y2="303" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="400" y1="36" x2="400" y2="303" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="560" y1="36" x2="560" y2="303" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="720" y1="36" x2="720" y2="303" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="880" y1="36" x2="880" y2="303" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="80" y1="52" x2="400" y2="52" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="240.0" y="47" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">1. login: role &#x27;admin&#x27; opens admin.html</text>
+<line x1="80" y1="71" x2="400" y2="71" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="240.0" y="66" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">2. GET /api/admin/users and /api/admin/analyses</text>
+<line x1="400" y1="90" x2="720" y2="90" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="560.0" y="85" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">3. users.list(), analyses.list()</text>
+<line x1="400" y1="109" x2="80" y2="109" stroke="#222" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+<text x="240.0" y="104" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">4. users with their files (expand / collapse)</text>
+<line x1="80" y1="128" x2="400" y2="128" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="240.0" y="123" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">5. PUT /api/admin/analyses/id/clauses/n/comment</text>
+<line x1="400" y1="147" x2="560" y2="147" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="480.0" y="142" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">6. comment_on_clause(reviewer, id, n, text)</text>
+<rect x="556" y="158" width="8" height="16" fill="#fff" stroke="#222"/>
+<text x="572" y="170" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">7. is admin? analysis finished? text valid?</text>
+<line x1="560" y1="185" x2="720" y2="185" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="640.0" y="180" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">8. comments.save()</text>
+<line x1="720" y1="204" x2="880" y2="204" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="800.0" y="199" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">9. INSERT or UPDATE clause_comments</text>
+<line x1="240" y1="223" x2="400" y2="223" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="320.0" y="218" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">10. GET /api/analyses/id (own file)</text>
+<line x1="400" y1="242" x2="240" y2="242" stroke="#222" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+<text x="320.0" y="237" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">11. clauses with the comment, read-only</text>
+<line x1="240" y1="261" x2="400" y2="261" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="320.0" y="256" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">12. PUT or DELETE a comment</text>
+<line x1="400" y1="280" x2="240" y2="280" stroke="#222" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+<text x="320.0" y="275" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">13. 403: administrators only</text>
+</svg>

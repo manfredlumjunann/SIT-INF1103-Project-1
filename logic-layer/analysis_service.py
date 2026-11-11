@@ -1,4 +1,4 @@
-"""Runs one analysis end to end: detect clauses, research case law, improve workarounds, save, alert."""
+# Runs one analysis end to end: detect clauses, research case law, improve workarounds, save, alert.
 
 import logging
 from datetime import datetime
@@ -25,10 +25,10 @@ class AnalysisService:
         self._researcher = researcher
         self._alerts = alerts
 
+    # Returns (analysis, was_cached). The same contract and context gives the saved result
+    # back. Results with no clauses are never reused, so one bad AI answer cannot get stuck.
     def analyze(self, owner: User, filename: str, contract_text: str,
                 context: str) -> Tuple[Analysis, bool]:
-        """Returns (analysis, was_cached). The same contract and context gives the saved result
-        back. Results with no clauses are never reused, so one bad AI answer cannot get stuck."""
         contract_hash = self._data.analyses.compute_contract_hash(contract_text, context)
         cached = self._data.analyses.find_by_hash(owner.id, contract_hash)
         if cached and cached.clauses:
@@ -48,9 +48,9 @@ class AnalysisService:
             raise
         return saved, False
 
+    # Mark analyses left 'processing' by a restart as failed (there is one worker, so they
+    # can never finish). Returns how many there were.
     def recover_interrupted(self) -> int:
-        """Mark analyses left 'processing' by a restart as failed (there is one worker, so they
-        can never finish). Returns how many there were."""
         stale = self._data.analyses.list(status=AnalysisStatus.PROCESSING)
         for analysis in stale:
             self._data.analyses.fail(analysis.id)
@@ -86,9 +86,9 @@ class AnalysisService:
 
         return [self._with_defaults(clause) for clause in clauses if isinstance(clause, dict)]
 
+    # Fill in missing fields; an unknown risk level becomes MEDIUM.
     @staticmethod
     def _with_defaults(clause: Dict) -> Dict:
-        """Fill in missing fields; an unknown risk level becomes MEDIUM."""
         clause.setdefault('issue_description', 'Potential risk identified')
         clause.setdefault('workaround', 'Consult legal counsel')
         clause.setdefault('legal_references', [])

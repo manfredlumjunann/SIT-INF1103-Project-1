@@ -1,0 +1,61 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="960" height="345" viewBox="0 0 960 345">
+<defs><marker id="tri" markerWidth="14" markerHeight="14" refX="13" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L13,7 L1,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="dia" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#222" stroke="#222" stroke-width="1"/></marker><marker id="diaw" markerWidth="20" markerHeight="14" refX="1" refY="7" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,7 L9,1 L17,7 L9,13 Z" fill="#fff" stroke="#222" stroke-width="1.3"/></marker><marker id="arr" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11" fill="none" stroke="#222" stroke-width="1.3"/></marker><marker id="arrf" markerWidth="12" markerHeight="12" refX="11" refY="6" orient="auto" markerUnits="userSpaceOnUse"><path d="M1,1 L11,6 L1,11 Z" fill="#222" stroke="#222" stroke-width="1"/></marker></defs>
+<rect width="960" height="345" fill="#ffffff"/>
+<rect x="15.0" y="6" width="80" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="55.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">Browser</text>
+<rect x="115.0" y="6" width="90" height="30" rx="3" fill="#fff3e0" stroke="#e65100" stroke-width="1.5"/>
+<text x="160.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">IOManager</text>
+<rect x="215.0" y="6" width="100" height="30" rx="3" fill="#e3f2fd" stroke="#1565c0" stroke-width="1.5"/>
+<text x="265.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">AnalysisService</text>
+<rect x="325.0" y="6" width="90" height="30" rx="3" fill="#e8f5e9" stroke="#2e7d32" stroke-width="1.5"/>
+<text x="370.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">DataManager</text>
+<rect x="432.0" y="6" width="86" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="475.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">PostgreSQL</text>
+<rect x="539.0" y="6" width="82" height="30" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="580.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">AIManager</text>
+<rect x="642.0" y="6" width="86" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="685.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">OpenRouter</text>
+<rect x="752.0" y="6" width="76" height="30" rx="3" fill="#f5f5f5" stroke="#616161" stroke-width="1.5"/>
+<text x="790.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">Telegram</text>
+<rect x="855.0" y="6" width="80" height="30" rx="3" fill="#f3e5f5" stroke="#6a1b9a" stroke-width="1.5"/>
+<text x="895.0" y="22" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10" font-weight="700" fill="#111">Firecrawl</text>
+<line x1="55" y1="36" x2="55" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="160" y1="36" x2="160" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="265" y1="36" x2="265" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="370" y1="36" x2="370" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="475" y1="36" x2="475" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="580" y1="36" x2="580" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="685" y1="36" x2="685" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="790" y1="36" x2="790" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="895" y1="36" x2="895" y2="341" stroke="#aaa" stroke-dasharray="4 4"/>
+<line x1="55" y1="52" x2="160" y2="52" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="107.5" y="47" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">1. POST /api/analyze (file + context)</text>
+<rect x="156" y="63" width="8" height="16" fill="#fff" stroke="#222"/>
+<text x="172" y="75" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" font-style="italic" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">2. extract text (DocumentExtractor)</text>
+<line x1="160" y1="90" x2="265" y2="90" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="212.5" y="85" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">3. analyze(owner, text, context)</text>
+<line x1="265" y1="109" x2="370" y2="109" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="317.5" y="104" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">4. find_by_hash(); create() as &#x27;processing&#x27;</text>
+<line x1="370" y1="128" x2="475" y2="128" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="422.5" y="123" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">5. SELECT / INSERT</text>
+<line x1="265" y1="147" x2="580" y2="147" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="422.5" y="142" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">6. detect_clauses()</text>
+<line x1="580" y1="166" x2="685" y2="166" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="632.5" y="161" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">7. prompt, JSON answer (fail over to next model)</text>
+<line x1="580" y1="185" x2="790" y2="185" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="685.0" y="180" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">8. every model failed: Fix / Stop alert</text>
+<line x1="265" y1="204" x2="895" y2="204" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="580.0" y="199" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">9. research(clause) for each flagged clause</text>
+<line x1="265" y1="223" x2="580" y2="223" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="422.5" y="218" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">10. improve_workarounds()</text>
+<line x1="265" y1="242" x2="370" y2="242" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="317.5" y="237" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">11. complete(): validate, one transaction</text>
+<line x1="370" y1="261" x2="475" y2="261" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="422.5" y="256" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">12. INSERT clauses, references; status = done</text>
+<line x1="265" y1="280" x2="790" y2="280" stroke="#222" stroke-width="1.4" marker-end="url(#arrf)"/>
+<text x="527.5" y="275" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">13. AlertPolicy: 7-8 flagged to DON_ID, 9+ to MAN_ID</text>
+<line x1="265" y1="299" x2="160" y2="299" stroke="#222" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+<text x="212.5" y="294" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">14. Analysis (+ cached flag)</text>
+<line x1="160" y1="318" x2="55" y2="318" stroke="#222" stroke-width="1.4" stroke-dasharray="6 4" marker-end="url(#arr)"/>
+<text x="107.5" y="313" text-anchor="middle" font-family="'Segoe UI', Arial, sans-serif" font-size="10.5" fill="#111" stroke="#fff" stroke-width="3.5" paint-order="stroke">15. JSON: clauses, risk counts, comments</text>
+</svg>

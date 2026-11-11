@@ -1,4 +1,4 @@
-"""Small functions shared by the entities."""
+# Small functions shared by the entities.
 
 from datetime import datetime, timezone
 from typing import Type
@@ -6,8 +6,8 @@ from typing import Type
 from choice_enum import ChoiceEnum
 
 
+# SQL for a CHECK constraint limiting a column to the values of an enumeration.
 def in_list(column: str, choices: Type[ChoiceEnum]) -> str:
-    """SQL for a CHECK constraint limiting a column to the values of an enumeration."""
     values = ', '.join(f"'{member.value}'" for member in choices)
     return f'{column} IN ({values})'
 

@@ -19,15 +19,15 @@ class ReferenceRepository(Repository[LegalReference]):
         with self._database.session() as session:
             return list(session.scalars(select(LegalReference).order_by(LegalReference.id)))
 
+    # Save references whose id is not stored yet; existing ones are left untouched.
+    # Returns the references that were added.
     def add_many(self, references: List[LegalReference]) -> List[LegalReference]:
-        """Save references whose id is not stored yet; existing ones are left untouched.
-        Returns the references that were added."""
         with self._database.session() as session:
             return self.add_many_in(session, references)
 
+    # add_many inside an existing transaction (used by AnalysisRepository.complete).
     @staticmethod
     def add_many_in(session: Session, references: List[LegalReference]) -> List[LegalReference]:
-        """add_many inside an existing transaction (used by AnalysisRepository.complete)."""
         if not references:
             return []
         rows = [{'id': r.id, 'url': r.url, 'title': r.title, 'domain': r.domain,

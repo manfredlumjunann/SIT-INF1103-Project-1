@@ -1,4 +1,4 @@
-"""Registration, login and the admin account."""
+# Registration, login and the admin account.
 
 import logging
 import os
@@ -21,8 +21,8 @@ class AuthService:
     def __init__(self, data: DataManager) -> None:
         self._data = data
 
+    # Create a customer account. Registration never creates an admin.
     def register(self, username: str, password: str) -> User:
-        """Create a customer account. Registration never creates an admin."""
         username = username.strip().lower()
         if not USERNAME_PATTERN.match(username):
             raise AuthError(self.USERNAME_RULES_MESSAGE, 'invalid')
@@ -43,9 +43,9 @@ class AuthService:
             raise AuthError(self.LOGIN_FAILED_MESSAGE, 'unauthorized')
         return user
 
+    # Create the admin named by ADMIN_USERNAME / ADMIN_PASSWORD if it does not exist yet.
+    # Registration only creates customers, so this is the only way to get an admin.
     def seed_admin_from_env(self) -> None:
-        """Create the admin named by ADMIN_USERNAME / ADMIN_PASSWORD if it does not exist yet.
-        Registration only creates customers, so this is the only way to get an admin."""
         username = (os.getenv('ADMIN_USERNAME') or '').strip().lower()
         password = os.getenv('ADMIN_PASSWORD') or ''
         if not username and not password:

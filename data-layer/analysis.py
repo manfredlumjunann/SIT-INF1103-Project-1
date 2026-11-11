@@ -51,9 +51,9 @@ class Analysis(Base):
     def created_at_iso(self) -> str:
         return iso_utc(self.created_at)
 
+    # SQL condition: the analysis is in this status.
     @classmethod
     def has_status(cls, status: AnalysisStatus):
-        """SQL condition: the analysis is in this status."""
         return cls._status == AnalysisStatus(status).value
 
     def mark_done(self, clauses: List[Clause]) -> None:
@@ -66,8 +66,8 @@ class Analysis(Base):
     def discard_clauses(self) -> None:
         self.clauses.clear()
 
+    # Clauses per risk level, worked out from the clauses so it cannot go stale.
     def counts(self) -> Dict[RiskLevel, int]:
-        """Clauses per risk level, worked out from the clauses so it cannot go stale."""
         counts = {level: 0 for level in RiskLevel}
         for clause in self.clauses:
             counts[clause.risk_level] += 1

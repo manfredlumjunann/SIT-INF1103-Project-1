@@ -1,4 +1,4 @@
-"""PostgreSQL connection handling."""
+# PostgreSQL connection handling.
 
 import logging
 import os
@@ -16,9 +16,9 @@ from orm_base import Base
 logger = logging.getLogger(__name__)
 
 
+# Owns the SQLAlchemy engine for one database and hands out sessions.
+# Creating a Database does not connect; the first query does.
 class Database:
-    """Owns the SQLAlchemy engine for one database and hands out sessions.
-    Creating a Database does not connect; the first query does."""
 
     CONNECT_TIMEOUT_SECONDS = 5
 
@@ -36,10 +36,10 @@ class Database:
             raise RuntimeError(f"{variable} is not set")
         return cls(url)
 
+    # Use the psycopg 3 driver for plain postgres:// or postgresql:// URLs,
+    # which is the form hosted providers usually give out.
     @staticmethod
     def normalise_url(url: str) -> str:
-        """Use the psycopg 3 driver for plain postgres:// or postgresql:// URLs,
-        which is the form hosted providers usually give out."""
         url = url.strip()
         for prefix in ('postgres://', 'postgresql://'):
             if url.startswith(prefix):
@@ -71,12 +71,12 @@ class Database:
             logger.warning("Database %s is not reachable: %s", self.safe_url, error)
             return False
 
+    # Create the tables, and the id sequences, that do not exist yet. Existing tables are left as they are.
     def create_tables(self) -> None:
-        """Create the tables, and the id sequences, that do not exist yet. Existing tables are left as they are."""
         Base.metadata.create_all(self._engine)
 
+    # Close every pooled connection (e.g. at shutdown or between tests).
     def dispose(self) -> None:
-        """Close every pooled connection (e.g. at shutdown or between tests)."""
         self._engine.dispose()
 
     def __repr__(self) -> str:

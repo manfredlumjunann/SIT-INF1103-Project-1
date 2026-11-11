@@ -1,4 +1,4 @@
-"""The one place the rest of the app gets its data from."""
+# The one place the rest of the app gets its data from.
 
 import logging
 from typing import Dict
@@ -17,8 +17,8 @@ from user_repository import UserRepository
 logger = logging.getLogger(__name__)
 
 
+# Owns the database connection and creates the repositories that share it.
 class DataManager:
-    """Owns the database connection and creates the repositories that share it."""
 
     def __init__(self, database: Database) -> None:
         self._database = database
@@ -27,9 +27,9 @@ class DataManager:
         self._analyses = AnalysisRepository(database, self._references)
         self._comments = CommentRepository(database)
 
+    # Connect using the DATABASE_URL environment variable.
     @classmethod
     def from_env(cls) -> 'DataManager':
-        """Connect using the DATABASE_URL environment variable."""
         return cls(Database.from_env())
 
     @property
@@ -48,8 +48,8 @@ class DataManager:
     def comments(self) -> CommentRepository:
         return self._comments
 
+    # Connect, create any missing tables and return how many records are stored.
     def init_storage(self) -> Dict[str, int]:
-        """Connect, create any missing tables and return how many records are stored."""
         if not self._database.ping():
             raise RuntimeError(f"Cannot connect to the database at {self._database.safe_url}")
         self._database.create_tables()

@@ -1,10 +1,10 @@
-"""Base for the enumerations whose values are stored as text."""
+# Base for the enumerations whose values are stored as text.
 
 import enum
 
 
+# An enumeration stored as its text value.
 class ChoiceEnum(str, enum.Enum):
-    """An enumeration stored as its text value."""
 
     @classmethod
     def _parse(cls, value, field: str):

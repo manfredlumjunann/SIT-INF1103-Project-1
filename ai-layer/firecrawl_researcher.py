@@ -1,4 +1,4 @@
-"""Finds case law and precedents for a flagged clause using Firecrawl."""
+# Finds case law and precedents for a flagged clause using Firecrawl.
 
 import logging
 from typing import Dict, List, Optional
@@ -19,9 +19,9 @@ class FirecrawlResearcher:
     def is_configured(self) -> bool:
         return bool(self._api_key)
 
+    # Up to three {title, url, summary} references for the clause, or [] when research is
+    # not configured or fails (research is optional, so a failure never stops an analysis).
     def research(self, clause: Dict) -> List[Dict[str, str]]:
-        """Up to three {title, url, summary} references for the clause, or [] when research is
-        not configured or fails (research is optional, so a failure never stops an analysis)."""
         if not self.is_configured:
             return []
         try:

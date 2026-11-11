@@ -1,7 +1,7 @@
-"""Alerts for analyses that flag many clauses.
-
-AlertPolicy asks every AlertRule the same question and never checks what kind of rule it has,
-so a new kind of alert is just a new AlertRule subclass."""
+# Alerts for analyses that flag many clauses.
+#
+# AlertPolicy asks every AlertRule the same question and never checks what kind of rule it has,
+# so a new kind of alert is just a new AlertRule subclass.
 
 from typing import Sequence
 
@@ -14,8 +14,8 @@ class AlertPolicy:
     def __init__(self, rules: Sequence[AlertRule]) -> None:
         self._rules = list(rules)
 
+    # Run the first rule that matches.
     def evaluate(self, analysis: Analysis, owner: User) -> None:
-        """Run the first rule that matches."""
         total = len(analysis.clauses)
         for rule in self._rules:
             if rule.matches(total):

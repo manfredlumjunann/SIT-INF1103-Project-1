@@ -1,4 +1,4 @@
-"""Talks to the AI: builds the prompts, fails over between models and checks the answers."""
+# Talks to the AI: builds the prompts, fails over between models and checks the answers.
 
 import json
 import logging
@@ -86,8 +86,8 @@ Return JSON array of flagged clauses."""
             logger.warning("Failed to parse AI response as JSON")
             return []
 
+    # Ask for fuller workarounds. This step is optional, so on any failure the clauses come back unchanged.
     def improve_workarounds(self, clauses: List[Dict], recovery: RecoverySession) -> List[Dict]:
-        """Ask for fuller workarounds. This step is optional, so on any failure the clauses come back unchanged."""
         user_prompt = f"""Enhance these flagged clauses with detailed workarounds:
 
 {json.dumps(clauses, indent=2)}
@@ -105,8 +105,8 @@ Return JSON array with enhanced workaround fields."""
             logger.warning("Workaround enhancement failed: %s", error)
         return clauses
 
+    # Ask the first few models a trivial question. Returns (working models, failures).
     def probe_models(self, limit: int = 4) -> Tuple[List[str], List[Dict[str, str]]]:
-        """Ask the first few models a trivial question. Returns (working models, failures)."""
         working, failed = [], []
         if not self.is_configured:
             return working, failed
@@ -162,10 +162,10 @@ Return JSON array with enhanced workaround fields."""
             "Please try again later."
         )
 
+    # Every model failed: let the engineers choose Fix (try the backup model) or Stop.
+    # Returns the backup model's answer, or None if they pressed neither button.
     def _ask_engineers(self, client: OpenAI, messages: List[Dict], recovery: RecoverySession,
                        error_category: Optional[str]) -> Optional[str]:
-        """Every model failed: let the engineers choose Fix (try the backup model) or Stop.
-        Returns the backup model's answer, or None if they pressed neither button."""
         decision = self._approval.request_decision(error_category)
         if decision == 'accept':
             recovery.manual_model = self.MANUAL_BACKUP_MODEL
@@ -191,9 +191,9 @@ Return JSON array with enhanced workaround fields."""
             raise RuntimeError("Backup AI returned an empty response")
         return content
 
+    # A short category for the engineering alert.
     @staticmethod
     def _classify_error(error: Exception) -> str:
-        """A short category for the engineering alert."""
         text = str(error).lower()
         if 'context_length' in text or 'maximum context' in text or 'too long' in text:
             return 'Context length exceeded - document too large for AI processing'
@@ -209,18 +209,18 @@ Return JSON array with enhanced workaround fields."""
             return 'Invalid request to AI service'
         return f'AI processing error: {str(error)[:200]}'
 
+    # The JSON array inside a reply (it may be wrapped in markdown), or None if there is none.
     @staticmethod
     def _parse_json_array(response: str) -> Optional[List]:
-        """The JSON array inside a reply (it may be wrapped in markdown), or None if there is none."""
         match = re.search(r'\[.*\]', response, re.DOTALL)
         if not match:
             return None
         parsed = json.loads(match.group())
         return parsed if isinstance(parsed, list) else None
 
+    # Keep objects that have a clause type or clause text; drop everything else.
     @staticmethod
     def _valid_clauses(items: Optional[List]) -> List[Dict]:
-        """Keep objects that have a clause type or clause text; drop everything else."""
         clauses = []
         for item in items or []:
             if isinstance(item, dict) and (item.get('clause_type') or item.get('clause_text')):

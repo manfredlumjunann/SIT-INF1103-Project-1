@@ -30,9 +30,9 @@ class LegalReference(Base):
         self.domain = domain
         self._verification = Verification(verification).value
 
+    # A new, unverified reference. The id comes from the URL, so the same source is stored once.
     @classmethod
     def from_url(cls, url: str, title: str = '') -> 'LegalReference':
-        """A new, unverified reference. The id comes from the URL, so the same source is stored once."""
         host = urlparse(url).netloc.lower()
         return cls(id='ref_' + hashlib.sha256(url.encode('utf-8')).hexdigest()[:12],
                    url=url, title=title or url,
@@ -42,7 +42,7 @@ class LegalReference(Base):
     def verification(self) -> Verification:
         return Verification(self._verification)
 
+    # Record whether the source has been checked; unknown states are refused.
     @verification.setter
     def verification(self, value) -> None:
-        """Record whether the source has been checked; unknown states are refused."""
         self._verification = Verification.parse(value).value

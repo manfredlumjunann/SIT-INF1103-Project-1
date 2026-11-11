@@ -1,13 +1,14 @@
 from abc import ABC, abstractmethod
 
 
+# Can tell the engineers about a problem and wait for their answer.
 class ApprovalChannel(ABC):
-    """Can tell the engineers about a problem and wait for their answer."""
-
+    # Show the prompt and wait; returns 'accept' or 'reject'.
     @abstractmethod
     def request_decision(self, prompt: str) -> str:
-        """Show the prompt and wait; returns 'accept' or 'reject'."""
+        pass
 
+    # Post a progress message to the engineers.
     @abstractmethod
     def announce(self, message: str) -> None:
-        """Post a progress message to the engineers."""
+        pass

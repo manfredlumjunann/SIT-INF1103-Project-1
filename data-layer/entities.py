@@ -1,5 +1,5 @@
-"""Importing this module registers every table with Base.metadata, so create_all() sees all of them.
-Each entity lives in its own file; this is the one place that lists them."""
+# Importing this module registers every table with Base.metadata, so create_all() sees all of them.
+# Each entity lives in its own file; this is the one place that lists them.
 
 from analysis import Analysis
 from clause import Clause

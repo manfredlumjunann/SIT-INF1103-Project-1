@@ -28,10 +28,10 @@ class AnalysisRepository(Repository[Analysis]):
         super().__init__(database)
         self._references = references
 
+    # Identical contract text AND context produce the same hash, so a repeat
+    # request can reuse a saved result while a new question forces a rescan.
     @staticmethod
     def compute_contract_hash(contract_text: str, context: str = '') -> str:
-        """Identical contract text AND context produce the same hash, so a repeat
-        request can reuse a saved result while a new question forces a rescan."""
         payload = json.dumps([contract_text, context], ensure_ascii=False)
         return hashlib.sha256(payload.encode('utf-8')).hexdigest()
 
@@ -47,8 +47,8 @@ class AnalysisRepository(Repository[Analysis]):
 
     # Writing
 
+    # Record a new analysis in 'processing' state before the AI runs.
     def create(self, owner_id: str, filename: str, contract_text: str, context: str = '') -> Analysis:
-        """Record a new analysis in 'processing' state before the AI runs."""
         with self._database.session() as session:
             if session.get(User, owner_id) is None:
                 raise LookupError(f"users record not found: {owner_id}")
@@ -62,12 +62,11 @@ class AnalysisRepository(Repository[Analysis]):
             session.refresh(analysis, ['created_at'])
             return analysis
 
+    # Store the AI-flagged clauses and mark the analysis done.
+    #
+    # Every clause is validated before anything is written, and the references, clauses
+    # and status are saved in one transaction.
     def complete(self, analysis_id: str, ai_clauses: List[dict]) -> Analysis:
-        """Store the AI-flagged clauses and mark the analysis done.
-
-        Every clause is validated before anything is written, and the references, clauses
-        and status are saved in one transaction.
-        """
         with self._database.session() as session:
             analysis = self._require(session, analysis_id)
             new_references: dict = {}
@@ -88,9 +87,9 @@ class AnalysisRepository(Repository[Analysis]):
             session.flush()
             return analysis
 
+    # Permanently remove an analysis. Returns the deleted analysis.
+    # Shared legal references are kept because other analyses may cite them.
     def delete(self, analysis_id: str) -> Analysis:
-        """Permanently remove an analysis. Returns the deleted analysis.
-        Shared legal references are kept because other analyses may cite them."""
         with self._database.session() as session:
             analysis = self._require(session, analysis_id)
             session.delete(analysis)
@@ -111,10 +110,10 @@ class AnalysisRepository(Repository[Analysis]):
         with self._database.session() as session:
             return session.scalar(query)
 
+    # Newest first. risk_level keeps only analyses with at least one clause at that level.
     def list(self, owner_id: Optional[str] = None,
              status: Optional[AnalysisStatus] = None,
              risk_level: Optional[RiskLevel] = None) -> List[Analysis]:
-        """Newest first. risk_level keeps only analyses with at least one clause at that level."""
         query = select(Analysis).options(*self.WITH_CLAUSES)
         if status is not None:
             query = query.where(Analysis.has_status(status))

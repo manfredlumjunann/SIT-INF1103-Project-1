@@ -1,4 +1,4 @@
-"""The review feature: an admin comments on the clauses of a user's finished analysis."""
+# The review feature: an admin comments on the clauses of a user's finished analysis.
 
 from analysis_status import AnalysisStatus
 from clause_comment import ClauseComment
@@ -11,9 +11,9 @@ class ReviewService:
     def __init__(self, data: DataManager) -> None:
         self._data = data
 
+    # Add or replace the comment on one clause. Only admins may comment.
     def comment_on_clause(self, reviewer: User, analysis_id: str, position: int,
                           text: str) -> ClauseComment:
-        """Add or replace the comment on one clause. Only admins may comment."""
         self._require_reviewable(reviewer, analysis_id)
         try:
             return self._data.comments.save(analysis_id, position, reviewer.id, text)
@@ -22,8 +22,8 @@ class ReviewService:
         except ValueError as error:
             raise ReviewError(str(error), 'invalid') from None
 
+    # Delete the comment on one clause. Only admins may do this.
     def remove_comment(self, reviewer: User, analysis_id: str, position: int) -> None:
-        """Delete the comment on one clause. Only admins may do this."""
         self._require_reviewable(reviewer, analysis_id)
         try:
             removed = self._data.comments.delete(analysis_id, position)

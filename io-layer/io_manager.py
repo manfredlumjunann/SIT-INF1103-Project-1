@@ -1,5 +1,5 @@
-"""The HTTP side of the app: reads requests, checks input, calls the managers and shapes the
-JSON the browser shows. It holds no business rules and never queries the database itself."""
+# The HTTP side of the app: reads requests, checks input, calls the managers and shapes the
+# JSON the browser shows. It holds no business rules and never queries the database itself.
 
 import functools
 import logging
@@ -122,8 +122,8 @@ class IOManager:
             return view(*args, **kwargs)
         return wrapper
 
+    # Admins only. Checked on the server, so admin data is not protected just by hiding the page.
     def _admin_required(self, view: Callable) -> Callable:
-        """Admins only. Checked on the server, so admin data is not protected just by hiding the page."""
         @functools.wraps(view)
         @self._login_required
         def wrapper(*args, **kwargs):
@@ -161,15 +161,15 @@ class IOManager:
         self._start_session(user)
         return jsonify({'user': self._public_user(user)})
 
+    # Who is signed in; 401 if nobody is.
     def current_user(self) -> Response:
-        """Who is signed in; 401 if nobody is."""
         user = self._session_user()
         if user is None:
             return jsonify({'error': 'Not signed in'}), 401
         return jsonify({'user': self._public_user(user)})
 
+    # End the session. POST (not GET) so other sites cannot sign users out via a link.
     def logout(self) -> Response:
-        """End the session. POST (not GET) so other sites cannot sign users out via a link."""
         session.clear()
         return jsonify({'message': 'Signed out'})
 
@@ -206,10 +206,10 @@ class IOManager:
                 return extractor.extract(path)
         raise ValueError(f"Unsupported format: {Path(path).suffix.lower()}")
 
+    # Log the real error and send the user a generic message with a reference.
+    # The raw error can contain file paths or AI provider text, so it is never returned.
     @staticmethod
     def _analysis_error_response(error: Exception) -> Response:
-        """Log the real error and send the user a generic message with a reference.
-        The raw error can contain file paths or AI provider text, so it is never returned."""
         reference = secrets.token_hex(4)
         if isinstance(error, RuntimeError):
             # Every AI model failed
@@ -221,8 +221,8 @@ class IOManager:
                                  f'Please try again. (Reference: {reference})',
                         'reference': reference}), 500
 
+    # History list, newest first. Optional filters: ?status=done|failed|processing&risk=high|medium|low
     def list_analyses(self) -> Response:
-        """History list, newest first. Optional filters: ?status=done|failed|processing&risk=high|medium|low"""
         try:
             status = request.args.get('status') or None
             risk = request.args.get('risk') or None
@@ -235,15 +235,15 @@ class IOManager:
             return jsonify({'error': str(error)}), 400
         return jsonify({'analyses': [self._analysis_summary(a) for a in analyses]})
 
+    # Reopen a saved analysis without calling the AI.
     def get_analysis(self, analysis_id: str) -> Response:
-        """Reopen a saved analysis without calling the AI."""
         analysis = self._readable_analysis(analysis_id)
         if analysis is None:
             return jsonify({'error': 'Analysis not found'}), 404
         return jsonify(self._analysis_view(analysis))
 
+    # Permanently delete one of the current user's analyses.
     def delete_analysis(self, analysis_id: str) -> Response:
-        """Permanently delete one of the current user's analyses."""
         analysis = self._owned_analysis(analysis_id)
         if analysis is None:
             return jsonify({'error': 'Analysis not found'}), 404
@@ -253,24 +253,24 @@ class IOManager:
         self._data.analyses.delete(analysis_id)
         return jsonify({'deleted': analysis_id})
 
+    # The analysis if it exists and belongs to the current user, else None.
     def _owned_analysis(self, analysis_id: str) -> Optional[Analysis]:
-        """The analysis if it exists and belongs to the current user, else None."""
         analysis = self._data.analyses.get(analysis_id)
         if analysis is None or not analysis.is_owned_by(g.user.id):
             return None
         return analysis
 
+    # The analysis if the current user may view it: their own, or any analysis for an admin.
     def _readable_analysis(self, analysis_id: str) -> Optional[Analysis]:
-        """The analysis if the current user may view it: their own, or any analysis for an admin."""
         if g.user.is_admin():
             return self._data.analyses.get(analysis_id)
         return self._owned_analysis(analysis_id)
 
     # Compare routes
 
+    # Compare two finished analyses: ?a=<id>&b=<id>. Customers can compare their own;
+    # an admin can compare any two, including analyses of different users.
     def compare(self) -> Response:
-        """Compare two finished analyses: ?a=<id>&b=<id>. Customers can compare their own;
-        an admin can compare any two, including analyses of different users."""
         id_a = request.args.get('a') or ''
         id_b = request.args.get('b') or ''
         if not id_a or not id_b:
@@ -288,9 +288,9 @@ class IOManager:
             first, second = second, first
         return jsonify(self._comparison_view(self._comparer.compare(first, second)))
 
+    # The current user's other finished analyses that this one can be compared with,
+    # newest first, split into earlier analyses of the same file and the rest.
     def compare_options(self, analysis_id: str) -> Response:
-        """The current user's other finished analyses that this one can be compared with,
-        newest first, split into earlier analyses of the same file and the rest."""
         analysis = self._owned_analysis(analysis_id)
         if analysis is None:
             return jsonify({'error': 'Analysis not found'}), 404
@@ -303,8 +303,8 @@ class IOManager:
 
     # Admin routes: see every user's analyses and comment on their clauses
 
+    # Every account with how many analyses it has saved.
     def admin_users(self) -> Response:
-        """Every account with how many analyses it has saved."""
         analysis_counts: Dict[str, int] = {}
         for analysis in self._data.analyses.list():
             analysis_counts[analysis.owner_id] = analysis_counts.get(analysis.owner_id, 0) + 1
@@ -316,8 +316,8 @@ class IOManager:
             users.append(entry)
         return jsonify({'users': users})
 
+    # Analyses of one user (?user=<id>) or of everyone, newest first, labelled with their owner.
     def admin_analyses(self) -> Response:
-        """Analyses of one user (?user=<id>) or of everyone, newest first, labelled with their owner."""
         owner_id = request.args.get('user') or None
         if owner_id is not None and self._data.users.get(owner_id) is None:
             return jsonify({'error': 'User not found'}), 404
@@ -331,8 +331,8 @@ class IOManager:
             analyses.append(entry)
         return jsonify({'analyses': analyses})
 
+    # Add or replace the admin's comment on one clause.
     def save_comment(self, analysis_id: str, position: int) -> Response:
-        """Add or replace the admin's comment on one clause."""
         fields = self._json_fields('text')
         try:
             comment = self._reviews.comment_on_clause(g.user, analysis_id, position, fields['text'])
@@ -347,8 +347,8 @@ class IOManager:
             return jsonify({'error': str(error)}), REVIEW_ERROR_STATUS[error.reason]
         return jsonify({'deleted': True})
 
+    # Health check endpoint with model availability test.
     def health(self) -> Response:
-        """Health check endpoint with model availability test."""
         return jsonify(self._analyses.health_report())
 
     # Shaping JSON for the browser
@@ -363,9 +363,9 @@ class IOManager:
             return None
         return {'text': comment.text, 'updated_at': comment.updated_at_iso}
 
+    # One stored clause in the shape the frontend renders.
     @staticmethod
     def _clause_view(clause: Clause) -> Dict:
-        """One stored clause in the shape the frontend renders."""
         return {
             'id': f'cl_{clause.position}',
             'position': clause.position,
@@ -390,8 +390,8 @@ class IOManager:
             'line_number': clause.location_raw,
         }
 
+    # Full saved analysis in the shape the frontend renders.
     def _analysis_view(self, analysis: Analysis, cached: bool = False) -> Dict:
-        """Full saved analysis in the shape the frontend renders."""
         clauses = [self._clause_view(clause) for clause in analysis.clauses]
         view = {
             'id': analysis.id,
@@ -410,8 +410,8 @@ class IOManager:
                                else 'No problematic clauses detected')
         return view
 
+    # Lightweight history entry (no contract text or clauses).
     def _analysis_summary(self, analysis: Analysis) -> Dict:
-        """Lightweight history entry (no contract text or clauses)."""
         counts = self._counts_view(analysis)
         return {
             'id': analysis.id,

@@ -4,9 +4,8 @@ from alert_rule import AlertRule
 from notifier import Notifier
 
 
+# Matches when the number of flagged clauses is between min_flagged and max_flagged.
 class ClauseCountAlertRule(AlertRule):
-    """Matches when the number of flagged clauses is between min_flagged and max_flagged."""
-
     def __init__(self, notifier: Notifier, recipient: str, min_flagged: int,
                  max_flagged: Optional[int] = None) -> None:
         super().__init__(notifier, recipient)

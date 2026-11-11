@@ -6,16 +6,16 @@ from risk_level import RiskLevel
 from user import User
 
 
+# One way of deciding that an analysis deserves an alert, and who hears about it.
 class AlertRule(ABC):
-    """One way of deciding that an analysis deserves an alert, and who hears about it."""
-
     def __init__(self, notifier: Notifier, recipient: str) -> None:
         self._notifier = notifier
         self._recipient = recipient
 
+    # Should an analysis with this many flagged clauses trigger the rule?
     @abstractmethod
     def matches(self, total_flagged: int) -> bool:
-        """Should an analysis with this many flagged clauses trigger the rule?"""
+        pass
 
     def notify(self, analysis: Analysis, owner: User) -> None:
         counts = analysis.counts()
