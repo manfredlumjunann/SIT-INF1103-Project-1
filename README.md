@@ -14,55 +14,51 @@ docker compose up --build
 Use `--build` after every pull so the image includes the latest code. Data is kept in Docker volumes between restarts. `docker compose down` is safe;
 `docker compose down -v` also **deletes the database and saved data**.
 
-## AI error notifications
+## How the code is organised
 
-The Docker image runs the logic layer and imports the shared OpenRouter code from
-[`ai-layer/ai_service.py`](ai-layer/ai_service.py). Configure the primary and
-fallback model names in that file, then rebuild the image. Both the logic layer
-and the standalone AI layer use this list; the primary matches the logic layer's
-previous default.
+Every layer is a folder; the Python modules of all layers are copied side by side into `/app` in the image.
+Design diagrams (Mermaid source and PNGs) are in [`docs/`](docs).
 
-Set `OPENROUTER_API_KEY` and `TELEGRAM_BOT_TOKEN` in the container environment.
-The existing AI error notification sends to the configured group in the logic
-layer. Alerts include the failed model, error category and HTTP status where
-available, but not API keys, contract text, or provider response bodies.
-Telegram delivery errors are logged without interrupting analysis.
+| Manager | Folder | Classes |
+|---|---|---|
+| IO | `io-layer/` | `IOManager` (HTTP routes, input checks, JSON shaping), `DocumentExtractor` <<abstract>> with `PdfExtractor`, `DocxExtractor`, `TxtExtractor`; the browser UI (`*.html`, `*.js`, `styles.css`, `nginx.conf`) |
+| Logic | `logic-layer/` | `AuthService`, `AnalysisService`, `AnalysisComparer`, `AlertPolicy`, `AlertRule` <<abstract>> with `ClauseCountAlertRule`, `Notifier` / `ApprovalChannel` interfaces with `TelegramNotifier`; `app.py` wires everything together (`Application`) |
+| AI | `ai-layer/` | `AIManager` (prompts, model failover, response validation), `RecoverySession`, `FirecrawlResearcher` |
+| Data | `data-layer/` | `DataManager`, `Database`, `Repository` <<abstract>> with `UserRepository`, `ReferenceRepository`, `AnalysisRepository`, and the entities `User`, `Analysis`, `Clause`, `ClauseReference`, `LegalReference` |
 
-Completed analyses with 7 or 8 flagged clauses notify the existing medium-count
-individual chat; more than 8 notify the existing high-count individual chat.
-Cached results do not send another clause notification. These recipients are
-defined in [`logic-layer/app.py`](logic-layer/app.py), independently of the AI
-error group.
+Database changes are Alembic migrations in `data-layer/migrations`; they are applied when the container starts.
 
-If Telegram returns HTTP 401, check `TELEGRAM_BOT_TOKEN` and recreate the
-container with the corrected environment; restarting an existing container does
-not update its environment. HTTP 400 or 403 can indicate a bad chat ID, missing
-bot membership, or an individual who has not started the bot. Delivery failures
-are recorded in `/var/log/supervisor/gunicorn.err.log` inside the container.
+## Telegram notifications
 
-Alerts are generated when an analysis request encounters:
+- When **every** AI model fails during an analysis, the engineering group chat receives an alert with
+  **Fix** and **Stop** buttons. Fix retries the analysis with the backup model; Stop cancels it (the user sees
+  "AI service unavailable"). The alert is sent at most once per analysis.
+- A completed analysis with 7 or 8 flagged clauses notifies the "medium" chat; more than 8 notifies the "high" chat.
+  Cached results do not notify again.
+- Chats are configured with `TELEGRAM_GROUP_CHAT_ID`, `ALERT_MEDIUM_CHAT_ID` and `ALERT_HIGH_CHAT_ID`;
+  the defaults are the existing chats.
+- If Telegram returns HTTP 401, check `TELEGRAM_BOT_TOKEN` and recreate the container with the corrected
+  environment; restarting an existing container does not update its environment. HTTP 400 or 403 can indicate
+  a bad chat ID, missing bot membership, or an individual who has not started the bot.
 
-- A missing or failed primary model, even if a fallback succeeds.
-- No configured models or failure of every configured model, with the category
-  for each failed model. An empty fallback list alone does not trigger an alert.
-- Missing OpenRouter credentials, malformed AI output, document extraction
-  errors, or a failure in optional Firecrawl research or workaround enhancement.
-  Optional research and enhancement failures are reported but analysis continues.
+## Running the tests
 
-The model check happens during an analysis request, not when Docker builds or
-starts. A previously saved analysis may be returned from cache without calling
-the AI; use a different contract or context to exercise failover. If Firecrawl
-is not configured, its optional research is skipped.
+The tests never call a live AI or Telegram. They run in Docker against a throwaway PostgreSQL database:
 
-Run the integration tests with the Python dependencies installed
-(`pip install -r logic-layer/requirements.txt`). They need a throwaway Postgres
-database, because every test empties all tables:
-
-```powershell
-docker run -d --rm --name test-db -p 55432:5432 -e POSTGRES_PASSWORD=test postgres:17
-$env:TEST_DATABASE_URL = "postgresql://postgres:test@localhost:55432/postgres"
-python -m unittest discover -s tests -v
-docker stop test-db
+```bash
+docker compose -f docker-compose.test.yml -p inf1103-tests run --rm tests
+docker compose -f docker-compose.test.yml -p inf1103-tests down -v
 ```
+
+The report lists every test case with its input, expected result, actual result and
+`test case N pass`, then a summary. The same suite runs in GitHub Actions on every push
+([`.github/workflows/tests.yml`](.github/workflows/tests.yml)).
+
+| File | What it checks |
+|---|---|
+| `tests/test_api_behaviour.py` | All 13 HTTP endpoints: auth, analysis, caching, history, compare, admin, health, Telegram thresholds |
+| `tests/test_ai_notifications.py` | Model failover, Fix / Stop recovery, error categories, response validation |
+| `tests/test_oop_design.py` | Abstract classes, inheritance, overriding, interfaces, polymorphism, encapsulation, aggregation |
+| `tests/test_data_layer.py` | Repositories, entities, composition (cascade delete), the schema migration |
 
 Without `TEST_DATABASE_URL` the tests are skipped. They never use `DATABASE_URL`.

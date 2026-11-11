@@ -2,4 +2,15 @@
 
 # Runtime data written by data-layer/data_manager.py
 data-layer/data/
+
+# Python cache files
 __pycache__/
+*.py[cod]
+
+# Virtual environments
+.venv/
+venv/
+
+# IDE settings
+.vscode/
+.idea/

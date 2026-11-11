@@ -28,10 +28,11 @@ RUN pip install --no-cache-dir \
     "psycopg[binary]==3.3.8" \
     alembic==1.20.1
 
-# Copy logic layer application
-COPY logic-layer/app.py /app/
-COPY ai-layer/ai_service.py /app/
-COPY data-layer/data_manager.py /app/
+# Copy the application code: every layer's Python modules sit side by side in /app
+COPY logic-layer/*.py /app/
+COPY ai-layer/*.py /app/
+COPY data-layer/*.py /app/
+COPY io-layer/*.py /app/
 
 # Database migrations (applied at container start, see CMD)
 COPY data-layer/alembic.ini /app/

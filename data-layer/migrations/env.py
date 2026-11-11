@@ -1,5 +1,5 @@
 """Alembic environment: connects using DATABASE_URL and compares against the
-SQLAlchemy models in data_manager.py.
+SQLAlchemy models in entities.py.
 
 Run from the data-layer folder (or pass -c path/to/alembic.ini):
     alembic upgrade head                              # apply all migrations
@@ -13,9 +13,10 @@ from pathlib import Path
 from alembic import context
 from sqlalchemy import create_engine, pool
 
-# data_manager.py sits next to alembic.ini (in the repo and in the Docker image)
+# data-layer modules sit next to alembic.ini (in the repo and in the Docker image)
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-from data_manager import Base, Database  # noqa: E402
+from database import Database  # noqa: E402
+from entities import Base  # noqa: E402
 
 config = context.config
 

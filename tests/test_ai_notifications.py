@@ -1,321 +1,163 @@
-import importlib.util
-import io
+"""AI failover and Telegram notifications, tested directly on AIManager and TelegramNotifier.
+
+(Rewritten for the current design: the engineering alert is sent when every model has failed,
+and an engineer answers Fix / Stop in Telegram.)
+"""
+
 import json
-import os
-import sys
 import unittest
-from pathlib import Path
-from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import patch
 
-import httpx
-import openai
-from alembic import command as alembic_command
-from alembic.config import Config as AlembicConfig
-from sqlalchemy import text as sql_text
+import requests
 
+from support import TELEGRAM_ERROR_GROUP, FakeAI, FakeTelegram, ReportedCase, make_clause
 
-ROOT = Path(__file__).resolve().parents[1]
+from ai_manager import AIManager, RecoverySession
+from notifications import ApprovalChannel, Notifier, TelegramNotifier
 
-# The tests empty every table before each test, so they only run against a database
-# given explicitly for testing, never the app's DATABASE_URL. For example:
-#   docker run -d --rm -p 55432:5432 -e POSTGRES_PASSWORD=test postgres:17
-#   TEST_DATABASE_URL=postgresql://postgres:test@localhost:55432/postgres
-TEST_DATABASE_URL = os.getenv('TEST_DATABASE_URL')
-if not TEST_DATABASE_URL:
-    raise unittest.SkipTest('Set TEST_DATABASE_URL to a disposable PostgreSQL database to run these tests')
-
-_env_values = {
-    'OPENROUTER_API_KEY': 'test-key',
-    'TELEGRAM_BOT_TOKEN': 'test-token',
-    'FIRECRAWL_API_KEY': '',
-    'SECRET_KEY': 'test-secret',
-    'ADMIN_USERNAME': '',
-    'ADMIN_PASSWORD': '',
-    'DATABASE_URL': TEST_DATABASE_URL,
-}
-_old_env = {key: os.environ.get(key) for key in _env_values}
-os.environ.update(_env_values)
-
-if not os.getenv('TEST_INSTALLED_APP'):
-    sys.path.insert(0, str(ROOT / 'ai-layer'))
-    sys.path.insert(0, str(ROOT / 'data-layer'))
-
-import ai_service
-import data_manager
-
-# The app checks the schema when it is imported, so migrate the test database first
-alembic_command.upgrade(AlembicConfig(str(data_manager.ALEMBIC_INI)), 'head')
-
-if os.getenv('TEST_INSTALLED_APP'):
-    import app as logic
-else:
-    spec = importlib.util.spec_from_file_location('logic_app', ROOT / 'logic-layer' / 'app.py')
-    logic = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(logic)
+PRIMARY = AIManager.PRIMARY_MODEL
+SECOND_MODEL = 'google/gemma-pro-1.5-2b-it:free'
 
 
-def tearDownModule():
-    logic.data_manager.default_manager().close()
-    for key, value in _old_env.items():
-        if value is None:
-            os.environ.pop(key, None)
-        else:
-            os.environ[key] = value
-
-
-def response(text):
-    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])
-
-
-def reset_database():
-    """Empty every table and restart the id numbering, so each test starts clean."""
-    with logic.data_manager.default_manager().database.session() as session:
-        session.execute(sql_text(
-            'TRUNCATE clause_references, clauses, analyses, legal_references, users RESTART IDENTITY'))
-        session.execute(sql_text('ALTER SEQUENCE users_id_seq RESTART'))
-        session.execute(sql_text('ALTER SEQUENCE analyses_id_seq RESTART'))
-
-
-class AINotificationTests(unittest.TestCase):
+class FailoverCase(ReportedCase):
     def setUp(self):
-        reset_database()
-        self.models = patch.multiple(ai_service, PRIMARY_MODEL='primary', FALLBACK_MODELS=['fallback'])
-        self.models.start()
-        self.addCleanup(self.models.stop)
-        self.telegram = patch.object(logic.requests, 'post')
-        self.post = self.telegram.start()
-        self.post.return_value.json.return_value = {'ok': True}
-        self.post.return_value.status_code = 200
-        self.addCleanup(self.telegram.stop)
-        self.telegram_get = patch.object(logic.requests, 'get')
-        self.get = self.telegram_get.start()
-        self.get.return_value.json.return_value = {'ok': True}
-        self.get.return_value.status_code = 200
-        self.addCleanup(self.telegram_get.stop)
-        self.client = logic.app.test_client()
-        result = self.client.post('/api/auth/register', json={
-            'username': 'test-user', 'password': 'test-password',
-        })
-        self.assertEqual(result.status_code, 201)
+        self.telegram = FakeTelegram()
+        self.notifier = TelegramNotifier('test-token')
+        self.manager = AIManager('test-key', approval=self.notifier)
 
-    def use_provider(self, outcomes):
-        create = Mock(side_effect=outcomes)
-        client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=create)))
-        provider = patch.object(ai_service, 'get_openrouter_client', return_value=client)
-        provider.start()
-        self.addCleanup(provider.stop)
-        return create
+    def run_with(self, ai, action):
+        with ai.installed(), self.telegram.installed():
+            return action()
 
-    def analyze(self):
-        return self.client.post('/api/analyze', data={
-            'contract': (io.BytesIO(b'A contract for testing'), 'contract.txt'),
-        }, content_type='multipart/form-data')
+    def detect(self, ai, recovery=None):
+        recovery = recovery or RecoverySession()
+        return self.run_with(ai, lambda: self.manager.detect_clauses('A contract', '', recovery))
 
-    def alerts(self):
-        return [call.kwargs['json']['text'] for call in self.post.call_args_list]
+    def group_texts(self):
+        return [message[2] for message in self.telegram.sent_to(TELEGRAM_ERROR_GROUP)]
 
-    def test_primary_failure_alerts_and_fallback_succeeds(self):
-        create = self.use_provider([RuntimeError('404 missing'), response('[]')])
-        result = self.analyze()
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual([call.kwargs['model'] for call in create.call_args_list],
-                         ['primary', 'fallback'])
-        self.assertEqual(len(self.alerts()), 1)
-        self.assertIn('Primary model primary failed: Model unavailable', self.alerts()[0])
-        self.assertEqual(self.post.call_args.kwargs['json']['chat_id'], logic.TELEGRAM_GROUP_CHAT_ID)
 
-    def test_invalid_model_id_includes_model_and_http_status(self):
-        http_response = httpx.Response(400, request=httpx.Request('POST', 'https://example.invalid'))
-        error = openai.BadRequestError(
-            'model is not a valid model ID; private-user',
-            response=http_response,
-            body={'error': {'message': 'model is not a valid model ID', 'userid': 'private-user'}},
-        )
-        self.use_provider([error, error])
-        self.assertEqual(self.analyze().status_code, 503)
-        self.assertEqual(len(self.alerts()), 2)
-        self.assertIn('primary: Invalid model ID (HTTP 400)', self.alerts()[1])
-        self.assertIn('fallback: Invalid model ID (HTTP 400)', self.alerts()[1])
-        self.assertNotIn('private-user', str(self.alerts()))
+class FailoverTests(FailoverCase):
+    def test_unavailable_model_is_skipped_without_retry(self):
+        ai = FakeAI(detection='[]', failing_models={PRIMARY}, failure=RuntimeError('404 model not found'))
+        self.detect(ai)
+        self.verify('A 404 model is skipped immediately and the next model answers',
+                    f"Primary model raises '404 model not found'",
+                    [PRIMARY, SECOND_MODEL], ai.models_tried)
 
-    def test_primary_retry_success_does_not_alert(self):
-        create = self.use_provider([RuntimeError('429 rate limit'), response('[]')])
-        self.assertEqual(self.analyze().status_code, 200)
-        self.assertEqual([call.kwargs['model'] for call in create.call_args_list],
-                         ['primary', 'primary'])
-        self.assertEqual(self.alerts(), [])
+    def test_transient_failure_is_retried_on_same_model(self):
+        ai = FakeAI(detection='[]', fail_first_calls=1, failure=RuntimeError('429 rate limit'))
+        self.detect(ai)
+        self.verify('A transient failure is retried once on the same model',
+                    "First call raises '429 rate limit'", [PRIMARY, PRIMARY], ai.models_tried)
+        self.verify('No alert is sent when a retry succeeds', 'Messages sent to Telegram', [],
+                    self.telegram.messages)
 
-    def test_all_models_fail_and_alerts_do_not_leak_provider_text(self):
-        self.use_provider([RuntimeError('404 secret-primary'), RuntimeError('429 secret-fallback'),
-                           RuntimeError('429 secret-fallback')])
-        result = self.analyze()
-        self.assertEqual(result.status_code, 503)
-        self.assertEqual(len(self.alerts()), 2)
-        self.assertIn('Primary model primary failed', self.alerts()[0])
-        self.assertIn('fallback: Rate limit or quota exceeded', self.alerts()[1])
-        self.assertNotIn('secret-', str(self.alerts()))
-        self.assertNotIn('secret-', result.get_data(as_text=True))
-
-    def test_missing_primary_alerts_and_uses_fallback(self):
-        ai_service.PRIMARY_MODEL = ''
-        self.use_provider([response('[]')])
-        self.assertEqual(self.analyze().status_code, 200)
-        self.assertEqual(len(self.alerts()), 1)
-        self.assertIn('Primary model is not configured', self.alerts()[0])
-
-    def test_missing_primary_and_fallback_alert_twice(self):
-        ai_service.PRIMARY_MODEL = ''
-        ai_service.FALLBACK_MODELS = []
-        self.assertEqual(self.analyze().status_code, 503)
-        self.assertEqual(len(self.alerts()), 2)
-        self.assertIn('No primary or fallback AI models are configured', self.alerts()[1])
-
-    def test_removed_model_definitions_are_reported(self):
-        del ai_service.PRIMARY_MODEL
-        del ai_service.FALLBACK_MODELS
-        self.assertEqual(self.analyze().status_code, 503)
-        self.assertEqual(len(self.alerts()), 2)
-        self.assertIn('Primary model is not configured', self.alerts()[0])
-        self.assertIn('No primary or fallback AI models are configured', self.alerts()[1])
-
-    def test_empty_fallback_does_not_alert_if_primary_succeeds(self):
-        ai_service.FALLBACK_MODELS = []
-        self.use_provider([response('[]')])
-        self.assertEqual(self.analyze().status_code, 200)
-        self.assertEqual(self.alerts(), [])
-
-    def test_missing_api_key_alerts(self):
-        with patch.dict(os.environ, {'OPENROUTER_API_KEY': ''}):
-            self.assertEqual(self.analyze().status_code, 503)
-        self.assertIn('API key is not configured', self.alerts()[0])
-
-    def test_invalid_detection_response_fails_and_alerts(self):
-        self.use_provider([response('[{invalid}]')])
-        self.assertEqual(self.analyze().status_code, 503)
-        self.assertIn('malformed JSON during clause detection', self.alerts()[0])
-
-    def test_optional_enhancement_failure_alerts_and_keeps_original(self):
-        clauses = '[{"clause_type":"Liability","risk_level":"HIGH","clause_text":"text"}]'
-        self.use_provider([response(clauses), response('not JSON')])
-        with patch.object(logic, 'FIRECRAWL_API_KEY', None):
-            result = self.analyze()
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.get_json()['clauses'][0]['clause_type'], 'Liability')
-        self.assertIn('no JSON array during workaround enhancement', self.alerts()[0])
-
-    def test_exhausted_models_during_enhancement_alert_and_keep_original(self):
-        clauses = '[{"clause_type":"Liability","risk_level":"HIGH","clause_text":"text"}]'
-        self.use_provider([response(clauses), RuntimeError('404 missing'),
-                           RuntimeError('404 missing')])
-        result = self.analyze()
-        self.assertEqual(result.status_code, 200)
-        self.assertEqual(result.get_json()['clauses'][0]['clause_type'], 'Liability')
-        self.assertEqual(len(self.alerts()), 2)
-        self.assertIn('Primary model primary failed', self.alerts()[0])
-        self.assertIn('All AI models failed', self.alerts()[1])
-
-    def test_optional_research_failure_alerts_and_keeps_analysis(self):
-        clauses = '[{"clause_type":"Liability","risk_level":"HIGH","clause_text":"text"}]'
-        self.use_provider([response(clauses), response(clauses)])
-        with patch.object(logic, 'FIRECRAWL_API_KEY', 'test'), \
-             patch.object(logic, 'FirecrawlApp', side_effect=RuntimeError('429 private data')):
-            result = self.analyze()
-        self.assertEqual(result.status_code, 200)
-        self.assertIn('Firecrawl research failed: Rate limit or quota exceeded', self.alerts()[0])
-        self.assertNotIn('private data', self.alerts()[0])
-
-    def test_extraction_failure_alerts(self):
-        with patch.object(logic, 'extract_text_from_document', side_effect=ValueError('private')):
-            result = self.analyze()
-        self.assertEqual(result.status_code, 500)
-        self.assertIn('Document text extraction failed (ValueError)', self.alerts()[0])
-        self.assertNotIn('private', self.alerts()[0])
-
-    def test_nine_flagged_clauses_notify_existing_individual_and_not_again_from_cache(self):
-        clauses = [
-            {'clause_type': f'Clause {i}', 'risk_level': 'HIGH', 'clause_text': f'Text {i}'}
-            for i in range(9)
+    def test_error_categories_in_the_alert(self):
+        cases = [
+            ('context_length_exceeded', 'Context length exceeded - document too large for AI processing'),
+            ('429 Too Many Requests', 'Rate limit exceeded - too many requests'),
+            ('request timed out', 'AI request timed out'),
+            ('401 Unauthorized', 'AI authentication failed'),
+            ('invalid request body', 'Invalid request to AI service'),
         ]
-        self.use_provider([response(json.dumps(clauses)), response(json.dumps(clauses))])
-        first = self.analyze()
-        second = self.analyze()
-        self.assertEqual(first.status_code, 200)
-        self.assertEqual(second.status_code, 200)
-        self.assertTrue(second.get_json()['cached'])
-        self.assertEqual(self.post.call_count, 1)
-        payload = self.post.call_args.kwargs['json']
-        self.assertEqual(payload['chat_id'], logic.TELEGRAM_HIGH_COUNT_CHAT_ID)
-        self.assertIn('Total clause flagged: 9', payload['text'])
-        self.assertIn('High risk: 9', payload['text'])
+        for error_text, category in cases:
+            self.telegram = FakeTelegram(button_presses=['reject'])
+            ai = FakeAI(always_fail=RuntimeError(error_text))
+            with self.assertRaises(RuntimeError):
+                self.detect(ai)
+            self.verify(f"Alert category for '{error_text}'", f"Every model raises '{error_text}'",
+                        f'⚠️ AI Processing Error\n\n{category}', self.group_texts()[0])
 
-    def test_clause_thresholds_and_recipients(self):
-        for total, expected in ((6, None), (7, logic.TELEGRAM_MEDIUM_COUNT_CHAT_ID),
-                                (8, logic.TELEGRAM_MEDIUM_COUNT_CHAT_ID),
-                                (9, logic.TELEGRAM_HIGH_COUNT_CHAT_ID)):
-            with self.subTest(total=total):
-                self.post.reset_mock()
-                with logic.app.test_request_context():
-                    logic.send_telegram_notification(total, 'test-user', [])
-                if expected is None:
-                    self.post.assert_not_called()
-                else:
-                    self.assertEqual(self.post.call_args.kwargs['json']['chat_id'], expected)
+    def test_alert_goes_out_once_per_analysis(self):
+        self.telegram = FakeTelegram(button_presses=['reject'])
+        recovery = RecoverySession()
+        ai = FakeAI(always_fail=RuntimeError('503 provider down'))
+        with self.assertRaises(RuntimeError):
+            self.detect(ai, recovery)
+        with self.assertRaises(RuntimeError) as second:
+            self.detect(ai, recovery)
+        alerts = [text for text in self.group_texts() if text.startswith('⚠️')]
+        self.verify('A second AI call in the same analysis does not alert again',
+                    'Two failing calls sharing one RecoverySession',
+                    (1, True), (len(alerts), str(second.exception).startswith('All AI models are currently unavailable')))
 
-    def test_clause_telegram_unauthorized_is_logged_as_failure(self):
-        self.post.return_value.status_code = 401
-        self.post.return_value.json.return_value = {
-            'ok': False, 'error_code': 401, 'description': 'Unauthorized',
-        }
-        self.get.return_value.status_code = 401
-        self.get.return_value.json.return_value = self.post.return_value.json.return_value
-        with logic.app.test_request_context(), self.assertLogs(logic.logger, level='ERROR') as logs:
-            logic.send_telegram_notification(9, 'test-user', [])
-        self.assertIn('401', ' '.join(logs.output))
-        self.assertIn('check TELEGRAM_BOT_TOKEN', ' '.join(logs.output))
-        self.assertNotIn('test-token', ' '.join(logs.output))
+    def test_unknown_button_falls_through_to_unavailable(self):
+        self.telegram = FakeTelegram(button_presses=['something-else'])
+        with self.assertRaises(RuntimeError) as error:
+            self.detect(FakeAI(always_fail=RuntimeError('503 provider down')))
+        self.verify('An unrecognised button press ends in the generic unavailable error',
+                    "Telegram button 'something-else'",
+                    True, str(error.exception).startswith('All AI models are currently unavailable'))
 
-    def test_ai_telegram_unauthorized_is_logged_and_fallback_continues(self):
-        self.use_provider([RuntimeError('404 missing'), response('[]')])
-        self.post.return_value.status_code = 401
-        self.post.return_value.json.return_value = {'ok': False, 'error_code': 401}
-        with self.assertLogs(logic.logger, level='ERROR') as logs:
-            result = self.analyze()
-        self.assertEqual(result.status_code, 200)
-        self.assertIn('401', ' '.join(logs.output))
-        self.assertIn('check TELEGRAM_BOT_TOKEN', ' '.join(logs.output))
-        self.assertNotIn('test-token', ' '.join(logs.output))
+    def test_missing_api_key(self):
+        manager = AIManager(None, approval=self.notifier)
+        with self.assertRaises(ValueError) as error:
+            manager.detect_clauses('A contract', '', RecoverySession())
+        self.verify('No OpenRouter key is reported before any call is made', 'AIManager(api_key=None).detect_clauses',
+                    'OPENROUTER_API_KEY not configured', str(error.exception))
 
-    def test_non_json_telegram_unauthorized_still_reports_status(self):
-        self.post.return_value.status_code = 401
-        self.post.return_value.json.side_effect = ValueError('not JSON')
-        with logic.app.test_request_context(), self.assertLogs(logic.logger, level='ERROR') as logs:
-            logic.send_telegram_notification(9, 'test-user', [])
-        self.assertIn('HTTP 401', ' '.join(logs.output))
-        self.assertIn('check TELEGRAM_BOT_TOKEN', ' '.join(logs.output))
 
-    def test_telegram_timeout_is_logged_without_leaking_url(self):
-        self.post.side_effect = logic.requests.Timeout('https://api.telegram.org/bottest-token/sendMessage')
-        with logic.app.test_request_context(), self.assertLogs(logic.logger, level='ERROR') as logs:
-            logic.send_telegram_notification(9, 'test-user', [])
-        self.assertIn('Timeout', ' '.join(logs.output))
-        self.assertNotIn('test-token', ' '.join(logs.output))
+class ResponseValidationTests(FailoverCase):
+    def test_only_well_formed_clauses_are_kept(self):
+        raw = [make_clause(), 'a stray string', {'unrelated': 1}, make_clause(clause_type='Termination')]
+        clauses = self.detect(FakeAI(detection='Here you go: ' + json.dumps(raw)))
+        self.verify('Valid clauses are kept, strings and objects without a type or text are dropped',
+                    "AI answer: [clause, 'a stray string', {'unrelated': 1}, clause]",
+                    ['Unlimited Liability', 'Termination'], [c['clause_type'] for c in clauses])
 
-    def test_telegram_failure_is_logged_without_blocking_analysis(self):
-        self.use_provider([RuntimeError('404 unavailable'), response('[]')])
-        self.post.return_value.json.return_value = {'ok': False}
-        with self.assertLogs(logic.logger, level='ERROR') as logs:
-            result = self.analyze()
-        self.assertEqual(result.status_code, 200)
-        self.assertIn('Telegram rejected', ' '.join(logs.output))
+    def test_malformed_and_missing_json(self):
+        for title, answer in (('malformed JSON', '[{invalid}]'), ('no JSON at all', 'I cannot help'),
+                              ('a JSON object, not an array', '{"clause_type": "x"}')):
+            self.verify(f'AI answer with {title} gives no clauses', f'AI answer: {answer}',
+                        [], self.detect(FakeAI(detection=answer)))
 
-    def test_invalid_telegram_response_does_not_block_fallback(self):
-        self.use_provider([RuntimeError('404 unavailable'), response('[]')])
-        self.post.return_value.json.return_value = []
-        with self.assertLogs(logic.logger, level='ERROR') as logs:
-            result = self.analyze()
-        self.assertEqual(result.status_code, 200)
-        self.assertIn('Telegram rejected', ' '.join(logs.output))
+    def test_workaround_failure_keeps_original_clauses(self):
+        clauses = [make_clause()]
+        ai = FakeAI(workaround='not JSON')
+        result = self.run_with(ai, lambda: self.manager.improve_workarounds(clauses, RecoverySession()))
+        self.verify('If the improvement step returns garbage the original clauses are kept',
+                    "Workaround stage answers 'not JSON'", clauses, result)
+
+
+class TelegramNotifierTests(ReportedCase):
+    def test_interfaces(self):
+        notifier = TelegramNotifier('token')
+        self.verify('TelegramNotifier realises both interfaces',
+                    'isinstance(TelegramNotifier, Notifier / ApprovalChannel)',
+                    (True, True), (isinstance(notifier, Notifier), isinstance(notifier, ApprovalChannel)))
+        errors = []
+        for interface in (Notifier, ApprovalChannel):
+            try:
+                interface()
+            except TypeError as error:
+                errors.append(type(error).__name__)
+        self.verify('The interfaces cannot be instantiated', 'Notifier() and ApprovalChannel()',
+                    ['TypeError', 'TypeError'], errors)
+
+    def test_missing_token(self):
+        telegram = FakeTelegram()
+        notifier = TelegramNotifier(None)
+        with telegram.installed():
+            notifier.send('hello', '123')
+            notifier.announce('hello')
+            with self.assertRaises(RuntimeError) as error:
+                notifier.request_decision('prompt')
+        self.verify('Without a token nothing is sent and a decision cannot be requested',
+                    'TelegramNotifier(token=None): send, announce, request_decision',
+                    (0, 'Telegram bot token not configured'), (len(telegram.messages), str(error.exception)))
+
+    def test_delivery_failure_does_not_raise(self):
+        with patch.object(requests, 'get', side_effect=requests.ConnectionError('network down')):
+            result = TelegramNotifier('token').send('hello', '123')
+        self.verify('A failed delivery is logged, not raised', "send() while the network is down", None, result)
+
+    def test_send_targets_the_recipient(self):
+        telegram = FakeTelegram()
+        with telegram.installed():
+            TelegramNotifier('token').send('hello', '4242')
+        self.verify('send() delivers the text to the given chat', "send('hello', '4242')",
+                    [('4242', 'hello')], [(message[1], message[2]) for message in telegram.messages])
 
 
 if __name__ == '__main__':
